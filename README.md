@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kniffel
 
-## Getting Started
+Online-Kniffel für Freunde: Accounts, Live-Räume für 1–6 Spieler, Freundesliste mit Online-Status, Einladungen, Emoji-Reaktionen, Revanche, Statistiken, Spielverlauf und Bestenliste.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres, Realtime, Storage) · Vitest · Playwright
+
+Wie du das Spiel online stellst, steht in **[ANLEITUNG.md](ANLEITUNG.md)**.
+
+## Lokal entwickeln
+
+Voraussetzungen: Node 24, pnpm, Docker Desktop (läuft).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm db:start      # Supabase lokal starten (Docker)
+pnpm env:local     # schreibt .env.local mit den lokalen Schlüsseln
+pnpm dev           # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Supabase Studio (lokale Datenbank ansehen): http://127.0.0.1:54323
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm test              # Unit-Tests: Wertung + Spiel-Engine
+pnpm test:integration  # gegen lokales Supabase: Zugriffsregeln, Services, Realtime-Kanäle
+pnpm test:e2e          # Playwright: zwei Spieler spielen ein komplettes Spiel
+pnpm lint && pnpm typecheck
+```
 
-## Learn More
+## Aufbau
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/lib/kniffel/      Regeln & Spiel-Engine (reines TypeScript, voll getestet)
+src/server/*-service  Spiel-, Freundes- und Profil-Logik (Service-Role, prüft jede Aktion)
+src/server/*-actions  Server Actions (dünne Hülle: Login prüfen, Eingaben validieren)
+src/hooks/use-game    Live-Spielzustand, Presence, Emojis
+src/components/       UI (Würfel, Spielzettel, Lobby, Ergebnis …)
+src/app/              Seiten
+supabase/migrations/  Schema, Row Level Security, commit_game, Statistik-Views, Storage, Realtime-Regeln
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Fairness:** Clients lesen den Spielstand nur. Jede Aktion läuft als Server Action, gewürfelt wird auf dem Server (`crypto.randomInt`), gespeichert wird atomar mit Versionsprüfung, damit ein Doppelklick nur einmal zählt.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Design und Plan: `docs/superpowers/specs/` und `docs/superpowers/plans/`.
