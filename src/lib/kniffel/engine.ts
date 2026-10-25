@@ -15,6 +15,8 @@ export interface GameState {
   held: boolean[];
   rollsLeft: number;
   scores: Record<string, ScoreSheet>;
+  /** Vom Host aus der Lobby entfernte Spieler – dürfen nicht erneut beitreten. */
+  banned?: string[];
 }
 export type GameAction =
   | { type: 'join' }
@@ -122,6 +124,7 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
     case 'join': {
       if (state.status !== 'lobby') return fail('Das Spiel läuft bereits.');
       if (state.players.some((p) => p.id === actorId)) return ok(state);
+      if (state.banned?.includes(actorId)) return fail('Der Host hat dich aus diesem Raum entfernt.');
       if (state.players.length >= MAX_PLAYERS) return fail('Der Raum ist voll.');
       return ok({
         ...state,
@@ -136,7 +139,8 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
       if (!isHost) return fail('Nur der Host kann Spieler entfernen.');
       if (action.playerId === actorId) return fail('Du kannst dich nicht selbst entfernen.');
       if (!state.players.some((p) => p.id === action.playerId && !p.left)) return fail('Spieler nicht gefunden.');
-      return ok(withoutPlayer(state, action.playerId));
+      const next = withoutPlayer(state, action.playerId);
+      return ok(state.status === 'lobby' ? { ...next, banned: [...(state.banned ?? []), action.playerId] } : next);
     }
     case 'start':
       if (state.status !== 'lobby') return fail('Das Spiel läuft bereits.');

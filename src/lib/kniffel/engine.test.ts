@@ -58,6 +58,12 @@ describe('Lobby', () => {
   test('letzter Spieler verlässt Lobby → keine Spieler', () => {
     expect(act(lobby(A), A, { type: 'leave' }).players).toEqual([]);
   });
+  test('vom Host entfernter Spieler kann nicht erneut beitreten, freiwillig Gegangener schon', () => {
+    const kicked = act(lobby(A, B), A, { type: 'removePlayer', playerId: B });
+    expectError(kicked, B, { type: 'join' }, /entfernt/);
+    const left = act(lobby(A, C), C, { type: 'leave' });
+    expect(act(left, C, { type: 'join' }).players.map((p) => p.id)).toEqual([A, C]);
+  });
   test('Host kann in der Lobby Spieler entfernen, sich selbst nicht', () => {
     const s = act(lobby(A, B), A, { type: 'removePlayer', playerId: B });
     expect(s.players.map((p) => p.id)).toEqual([A]);

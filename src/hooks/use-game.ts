@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { isAllowedEmoji } from '@/lib/emojis';
 import type { GameAction, GameState } from '@/lib/kniffel/engine';
 import { createBrowserSupabase } from '@/lib/supabase/browser';
 import { gameAction } from '@/server/game-actions';
@@ -52,15 +53,19 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
   }, [playerIds, profiles, supabase]);
 
   useEffect(() => {
-    const channel = supabase.channel(`game:${initial.id}`, { config: { presence: { key: me } } });
+    const channel = supabase.channel(`game:${initial.id}`, { config: { private: true, presence: { key: me } } });
     channelRef.current = channel;
+    supabase.realtime.setAuth();
     channel
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${initial.id}` },
         (payload) => apply(toSnapshot(payload.new as Row)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games', filter: `id=eq.${initial.id}` },
         () => setGame(null))
       .on('broadcast', { event: 'emoji' }, ({ payload }) => {
-        setEmojis((e) => [...e.slice(-15), payload as EmojiEvent]);
+        const e = payload as Partial<EmojiEvent> | null;
+        const isPlayer = gameRef.current?.state.players.some((p) => p.id === e?.from);
+        if (!e || typeof e.id !== 'string' || !isAllowedEmoji(e.emoji) || !isPlayer) return;
+        setEmojis((list) => [...list.slice(-15), { id: e.id!, emoji: e.emoji!, from: e.from! }]);
       })
       .on('presence', { event: 'sync' }, () => {
         const ids = new Set(Object.keys(channel.presenceState()));

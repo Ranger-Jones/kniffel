@@ -241,7 +241,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "commit_game":
+            "can_use_game_channel":
+{ Args: { "topic": string }; Returns: boolean
+                           },
+"commit_game":
 { Args: { "p_expected_version": number,"p_game_id": string,"p_players": Json,"p_state": Json }; Returns: number
                            },
 "is_game_member":
