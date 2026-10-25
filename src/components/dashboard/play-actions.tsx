@@ -1,6 +1,7 @@
 'use client';
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { Card } from '@/components/ui/card';
 import { createGameAction, joinGameAction } from '@/server/game-actions';
 
@@ -12,7 +13,7 @@ export function PlayActions() {
         <h2 className="text-2xl font-extrabold">Neues Spiel</h2>
         <p className="text-ink-soft">Du eröffnest den Raum und lädst deine Freunde ein.</p>
         <form action={createGameAction} className="mt-auto">
-          <Button type="submit" size="lg">Neues Spiel</Button>
+          <SubmitButton size="lg" pendingLabel="Raum wird erstellt …">Neues Spiel</SubmitButton>
         </form>
       </Card>
       <Card className="flex flex-col items-start gap-3 p-6">
