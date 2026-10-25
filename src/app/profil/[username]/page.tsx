@@ -31,7 +31,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
       <section className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
         {isMe ? <AvatarUpload me={me.id} profile={stats} /> : <Avatar profile={stats} size="xl" />}
         <div className="flex flex-col items-start gap-1">
-          <h1 className="text-5xl font-extrabold">{stats.username}</h1>
+          <h1 className="break-all text-4xl font-extrabold sm:text-5xl">{stats.username}</h1>
           {isMe && <RenameForm current={stats.username} />}
         </div>
       </section>
