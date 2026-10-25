@@ -4,7 +4,9 @@ import { Toaster } from 'sonner';
 import { Header } from '@/components/app-shell/header';
 import { InviteListener } from '@/components/app-shell/invite-listener';
 import { OnlinePresenceProvider } from '@/components/app-shell/online-presence';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentUser } from '@/lib/supabase/server';
+import { listFriends } from '@/server/social-service';
 import './globals.css';
 
 const display = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'], weight: ['600', '700', '800'] });
@@ -19,6 +21,7 @@ export const viewport: Viewport = { themeColor: '#eef0ff', width: 'device-width'
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
   const user = await getCurrentUser();
+  const friendIds = user ? (await listFriends(createAdminClient(), user.id)).friends.map((f) => f.profile.id) : [];
   const content = (
     <>
       <Header />
@@ -29,7 +32,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
     <html lang="de" className={`${display.variable} ${body.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {user ? (
-          <OnlinePresenceProvider me={user.id}>
+          <OnlinePresenceProvider me={user.id} friendIds={friendIds}>
             {content}
             <InviteListener me={user.id} />
           </OnlinePresenceProvider>

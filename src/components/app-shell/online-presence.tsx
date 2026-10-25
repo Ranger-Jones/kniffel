@@ -4,29 +4,47 @@ import { createBrowserSupabase } from '@/lib/supabase/browser';
 
 const OnlineContext = createContext<Set<string>>(new Set());
 
-export function OnlinePresenceProvider({ me, children }: { me: string; children: ReactNode }) {
+/**
+ * Jeder Nutzer meldet sich in seinem eigenen privaten Kanal "online:<id>" an;
+ * Freunde hören dort zu (Datenbankregel erlaubt nur angenommene Freunde).
+ */
+export function OnlinePresenceProvider({ me, friendIds, children }: { me: string; friendIds: string[]; children: ReactNode }) {
   const supabase = useMemo(() => createBrowserSupabase(), []);
-  const [online, setOnline] = useState<Set<string>>(() => new Set([me]));
+  const [onlineFriends, setOnlineFriends] = useState<Set<string>>(new Set());
+  const friendKey = [...friendIds].sort().join(',');
 
   useEffect(() => {
     let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const channels: ReturnType<typeof supabase.channel>[] = [];
     (async () => {
       await supabase.realtime.setAuth();
       if (cancelled) return;
-      const ch = supabase.channel('online', { config: { private: true, presence: { key: me } } });
-      channel = ch;
-      ch.on('presence', { event: 'sync' }, () => setOnline(new Set([me, ...Object.keys(ch.presenceState())])))
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') await ch.track({});
-        });
+      const own = supabase.channel(`online:${me}`, { config: { private: true, presence: { key: me } } });
+      channels.push(own);
+      own.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') await own.track({});
+      });
+      for (const id of friendKey ? friendKey.split(',') : []) {
+        const ch = supabase.channel(`online:${id}`, { config: { private: true } });
+        channels.push(ch);
+        ch.on('presence', { event: 'sync' }, () => {
+          const here = Object.keys(ch.presenceState()).includes(id);
+          setOnlineFriends((prev) => {
+            if (prev.has(id) === here) return prev;
+            const next = new Set(prev);
+            if (here) next.add(id); else next.delete(id);
+            return next;
+          });
+        }).subscribe();
+      }
     })();
     return () => {
       cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      channels.forEach((c) => supabase.removeChannel(c));
     };
-  }, [me, supabase]);
+  }, [me, friendKey, supabase]);
 
+  const online = useMemo(() => new Set([me, ...onlineFriends]), [me, onlineFriends]);
   return <OnlineContext.Provider value={online}>{children}</OnlineContext.Provider>;
 }
 
