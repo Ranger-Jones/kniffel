@@ -63,7 +63,7 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
         () => setGame(null))
       .on('broadcast', { event: 'emoji' }, ({ payload }) => {
         const e = payload as Partial<EmojiEvent> | null;
-        const isPlayer = gameRef.current?.state.players.some((p) => p.id === e?.from);
+        const isPlayer = gameRef.current?.state.players.some((p) => p.id === e?.from && !p.left);
         if (!e || typeof e.id !== 'string' || !isAllowedEmoji(e.emoji) || !isPlayer) return;
         setEmojis((list) => [...list.slice(-15), { id: e.id!, emoji: e.emoji!, from: e.from! }]);
       })

@@ -7,7 +7,7 @@ begin
   end if;
   return exists (
     select 1 from public.game_players
-    where game_id = substring(topic from 6)::uuid and user_id = auth.uid()
+    where game_id = substring(topic from 6)::uuid and user_id = auth.uid() and not left_game
   );
 end $$;
 
