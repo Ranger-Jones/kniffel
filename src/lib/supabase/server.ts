@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
+import { isGateOpen } from '@/lib/gate-server';
 import { createAdminClient } from './admin';
 import type { Database } from './database.types';
 
@@ -34,6 +35,7 @@ export const getCurrentUser = cache(async () => {
 });
 
 export async function requireUser() {
+  if (!(await isGateOpen())) redirect('/zugang');
   const user = await getCurrentUser();
   if (!user) redirect('/login');
   return user;

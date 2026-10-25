@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 const run = Date.now().toString(36);
@@ -40,6 +41,19 @@ test('ohne richtige Antwort auf die Zugangsfrage ist nichts erreichbar', async (
   await expect(page).toHaveURL(/\/login\?next=%2Fspiel%2FABCDEF/);
   await page.goto('/registrieren');
   await expect(page.getByRole('button', { name: 'Account erstellen' })).toBeVisible();
+});
+
+test('Server Actions lassen sich nicht an der Zugangsfrage vorbei aufrufen', async ({ request }) => {
+  const manifest = JSON.parse(readFileSync('.next/server/server-reference-manifest.json', 'utf8'));
+  const signUpId = Object.entries(manifest.node as Record<string, { exportedName?: string }>)
+    .find(([, v]) => v.exportedName === 'signUp')![0];
+  const res = await request.post('/zugang', {
+    headers: { 'Next-Action': signUpId, Accept: 'text/x-component' },
+    multipart: { '0': '[{},"$K1"]', '1_email': 'keine-mail', '1_password': 'x', '1_username': 'ab', '1_next': '/' },
+  });
+  const body = await res.text();
+  expect(body).toContain('Bitte zuerst die Zugangsfrage beantworten.');
+  expect(body).not.toContain('Bitte eine gültige E-Mail eingeben.');
 });
 
 test('zwei Freunde spielen ein komplettes Spiel', async ({ browser }) => {

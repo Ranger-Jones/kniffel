@@ -1,6 +1,7 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { isGateOpen } from '@/lib/gate-server';
 import { safeNext } from '@/lib/safe-next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerSupabase } from '@/lib/supabase/server';
@@ -14,7 +15,10 @@ const signUpSchema = z.object({
   username: z.string().trim().regex(USERNAME_RE, 'Benutzername: 3–20 Zeichen, nur Buchstaben, Zahlen und _.'),
 });
 
+const GATE_ERROR = 'Bitte zuerst die Zugangsfrage beantworten.';
+
 export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
+  if (!(await isGateOpen())) return { error: GATE_ERROR };
   const kept = { email: String(form.get('email') ?? ''), username: String(form.get('username') ?? '') };
   const parsed = signUpSchema.safeParse({
     email: form.get('email'), password: form.get('password'), username: form.get('username'),
@@ -32,6 +36,7 @@ export async function signUp(_: AuthState, form: FormData): Promise<AuthState> {
 }
 
 export async function signIn(_: AuthState, form: FormData): Promise<AuthState> {
+  if (!(await isGateOpen())) return { error: GATE_ERROR };
   const supabase = await createServerSupabase();
   const { error } = await supabase.auth.signInWithPassword({
     email: String(form.get('email') ?? ''), password: String(form.get('password') ?? ''),
