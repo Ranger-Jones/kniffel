@@ -2,19 +2,9 @@
 
 Das dauert etwa 20 Minuten. Du brauchst Accounts bei **GitHub**, **Supabase** und **Vercel**. Alle drei sind kostenlos, und für Supabase und Vercel kannst du dich direkt mit GitHub anmelden.
 
-## 1. Code zu GitHub hochladen
+## 1. Code zu GitHub hochladen ✅
 
-Im Projektordner (`~/Development/Kniffel`):
-
-```bash
-git checkout main && git merge feat/kniffel-app
-```
-
-```bash
-gh repo create kniffel --private --source . --push
-```
-
-(Ohne GitHub-CLI: auf github.com ein leeres, privates Repo `kniffel` anlegen und die dort angezeigten Befehle für ein bestehendes Repo ausführen.)
+Erledigt: Der Code liegt in [github.com/Ranger-Jones/kniffel](https://github.com/Ranger-Jones/kniffel) (Branch `main`). Spätere Änderungen lädst du mit `git push` hoch.
 
 ## 2. Supabase-Projekt anlegen
 
