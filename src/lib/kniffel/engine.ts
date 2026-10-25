@@ -122,8 +122,8 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
 
   switch (action.type) {
     case 'join': {
-      if (state.status !== 'lobby') return fail('Das Spiel läuft bereits.');
       if (state.players.some((p) => p.id === actorId)) return ok(state);
+      if (state.status !== 'lobby') return fail('Das Spiel läuft bereits.');
       if (state.banned?.includes(actorId)) return fail('Der Host hat dich aus diesem Raum entfernt.');
       if (state.players.length >= MAX_PLAYERS) return fail('Der Raum ist voll.');
       return ok({

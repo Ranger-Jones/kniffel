@@ -42,6 +42,11 @@ describe('Lobby', () => {
     const res = applyAction(s, B, { type: 'join' }, six);
     expect(res.ok && res.state).toBe(s);
   });
+  test('Mitglied tritt laufendem Spiel erneut bei → No-Op statt Fehler', () => {
+    const s = started(A, B);
+    const res = applyAction(s, B, { type: 'join' }, six);
+    expect(res.ok && res.state).toBe(s);
+  });
   test('Beitritt in laufendes Spiel verboten', () => {
     expectError(started(A), B, { type: 'join' }, /läuft bereits/);
   });

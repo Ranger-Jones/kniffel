@@ -36,7 +36,7 @@ export function OfflineControls({ state, me, name, online, offlineSince, dispatc
     <div className="flex flex-col gap-3 rounded-[1.25rem] bg-sun/25 p-4 ring-2 ring-sun">
       <p className="font-bold">{name} ist offline. Du kannst den Zug überspringen oder {name} aus dem Spiel nehmen.</p>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => dispatch({ type: 'skipTurn' }, { versioned: true })}>Zug überspringen</Button>
+        <Button size="sm" onClick={() => dispatch({ type: 'skipTurn' }, { turn: true })}>Zug überspringen</Button>
         <Button size="sm" variant="secondary" onClick={() => setConfirmRemove(true)}>Aus dem Spiel entfernen</Button>
       </div>
       <Modal open={confirmRemove} onClose={() => setConfirmRemove(false)} title={`${name} entfernen?`}>

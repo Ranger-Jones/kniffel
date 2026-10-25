@@ -45,9 +45,8 @@ describe('Freunde', () => {
   test('Suche per Präfix ohne sich selbst', async () => {
     const a = await createTestUser('srch');
     const other = await createTestUser('srch');
-    const res = await searchProfiles(admin, a.id, 'srch');
-    expect(res.some((p) => p.id === a.id)).toBe(false);
-    expect(res.some((p) => p.id === other.id)).toBe(true);
+    expect((await searchProfiles(admin, a.id, a.username)).some((p) => p.id === a.id)).toBe(false);
+    expect((await searchProfiles(admin, a.id, other.username)).map((p) => p.id)).toEqual([other.id]);
   });
 });
 

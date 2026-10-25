@@ -58,3 +58,25 @@ describe('Online-Kanäle pro Nutzer', () => {
     expect(await subscribeStatus(stranger.client, 'online')).toBe('CHANNEL_ERROR');
   });
 });
+
+describe('Entfernen aus der Lobby', () => {
+  test('der entfernte Spieler bekommt eine kicked-Nachricht im Spielkanal', async () => {
+    const host = await createTestUser('kcH');
+    const kicked = await createTestUser('kcB');
+    const game = await createGame(admin, host.id);
+    if (!game.ok) throw new Error(game.error);
+    await joinGame(admin, kicked.id, game.data.code);
+    await kicked.client.realtime.setAuth();
+    const received = new Promise<unknown>((resolve) => {
+      const timer = setTimeout(() => resolve('TIMEOUT'), 8000);
+      kicked.client.channel(`game:${game.data.id}`, { config: { private: true } })
+        .on('broadcast', { event: 'kicked' }, ({ payload }) => { clearTimeout(timer); resolve(payload); })
+        .subscribe(async (status) => {
+          if (status !== 'SUBSCRIBED') return;
+          const v = (await loadGame(admin, game.data.id))!.version;
+          await performAction(admin, host.id, game.data.id, { type: 'removePlayer', playerId: kicked.id }, v);
+        });
+    });
+    expect(await received).toEqual({ userId: kicked.id });
+  });
+});

@@ -24,6 +24,7 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
   const [offlineSince, setOfflineSince] = useState<Record<string, number>>({});
   const [connected, setConnected] = useState(true);
   const [emojis, setEmojis] = useState<EmojiEvent[]>([]);
+  const [kickNotice, setKickNotice] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const gameRef = useRef(game);
   const lastEmoji = useRef(0);
@@ -74,6 +75,12 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
           if (!e || typeof e.id !== 'string' || !isAllowedEmoji(e.emoji) || !isPlayer) return;
           setEmojis((list) => [...list.slice(-15), { id: e.id!, emoji: e.emoji!, from: e.from! }]);
         })
+        .on('broadcast', { event: 'kicked' }, ({ payload }) => {
+          if ((payload as { userId?: string } | null)?.userId !== me) return;
+          // Nur als Hinweis nutzen und per Nachladen prüfen – Broadcasts können von Mitspielern stammen.
+          setKickNotice(true);
+          void refetch();
+        })
         .on('presence', { event: 'sync' }, () => {
           const ids = new Set(Object.keys(ch.presenceState()));
           ids.add(me);
@@ -105,10 +112,18 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
     };
   }, [apply, initial.id, me, refetch, supabase]);
 
-  const dispatch = useCallback(async (action: GameAction, opts: { versioned?: boolean } = {}) => {
+  /**
+   * versioned: Aktion gilt nur für genau diesen Spielstand (Start, Entfernen).
+   * turn: Aktion gilt nur für diesen Zug/Wurf (Würfeln, Eintragen, Überspringen) – gegen Doppelklicks,
+   *       ohne dass ein gerade gespeichertes Halten sie verwirft.
+   */
+  const dispatch = useCallback(async (action: GameAction, opts: { versioned?: boolean; turn?: boolean } = {}) => {
     const cur = gameRef.current;
     if (!cur) return false;
-    const res = await gameAction(cur.id, action, opts.versioned ? cur.version : undefined);
+    const expected = opts.turn
+      ? { seat: cur.state.currentSeat, rollsLeft: cur.state.rollsLeft }
+      : opts.versioned ? cur.version : undefined;
+    const res = await gameAction(cur.id, action, expected);
     if (res.ok) {
       apply({ ...cur, version: res.data.version, state: res.data.state });
       return true;
@@ -127,7 +142,7 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
     channelRef.current?.send({ type: 'broadcast', event: 'emoji', payload });
   }, [me]);
 
-  return { game, profiles, online, offlineSince, connected, emojis, sendEmoji, dispatch };
+  return { game, profiles, online, offlineSince, connected, emojis, kickNotice, sendEmoji, dispatch };
 }
 
 export type UseGame = ReturnType<typeof useGame>;

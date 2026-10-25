@@ -5,7 +5,7 @@ import type { GameAction } from '@/lib/kniffel/engine';
 import { CATEGORIES } from '@/lib/kniffel/types';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/server';
-import { createGame, joinGame, performAction, requestRematch } from './game-service';
+import { createGame, joinGame, performAction, requestRematch, type Expectation } from './game-service';
 import { fail } from './result';
 import { inviteToGame } from './social-service';
 
@@ -19,6 +19,10 @@ const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('removePlayer'), playerId: z.uuid() }),
 ]);
 const uuid = z.uuid();
+const expectationSchema = z.union([
+  z.number().int().min(0),
+  z.object({ seat: z.number().int().min(0).max(5), rollsLeft: z.number().int().min(0).max(3) }),
+]).optional();
 
 export async function createGameAction() {
   const user = await requireUser();
@@ -34,12 +38,12 @@ export async function joinGameAction(_: { error?: string }, form: FormData): Pro
   redirect(`/spiel/${res.data.code}`);
 }
 
-export async function gameAction(gameId: string, action: GameAction, expectedVersion?: number) {
+export async function gameAction(gameId: string, action: GameAction, expected?: Expectation) {
   const user = await requireUser();
   const parsed = actionSchema.safeParse(action);
-  if (!parsed.success || !uuid.safeParse(gameId).success) return fail('Ungültige Aktion.');
-  if (expectedVersion !== undefined && !Number.isInteger(expectedVersion)) return fail('Ungültige Aktion.');
-  return performAction(createAdminClient(), user.id, gameId, parsed.data, expectedVersion);
+  const exp = expectationSchema.safeParse(expected);
+  if (!parsed.success || !exp.success || !uuid.safeParse(gameId).success) return fail('Ungültige Aktion.');
+  return performAction(createAdminClient(), user.id, gameId, parsed.data, exp.data);
 }
 
 export async function rematchAction(gameId: string) {

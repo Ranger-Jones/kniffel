@@ -29,13 +29,13 @@ export function GameClient({ initial, initialProfiles, me, friends }: Props) {
 
   useEffect(() => {
     if (!game) {
-      toast('Das Spiel wurde aufgelöst.');
+      toast(g.kickNotice ? 'Der Host hat dich aus dem Raum entfernt.' : 'Das Spiel wurde aufgelöst.');
       router.replace('/');
     } else if (removed) {
-      toast('Du bist nicht mehr in diesem Spiel.');
+      toast(g.kickNotice ? 'Der Host hat dich aus dem Raum entfernt.' : 'Du bist nicht mehr in diesem Spiel.');
       router.replace('/');
     }
-  }, [game, removed, router]);
+  }, [game, removed, router, g.kickNotice]);
 
   // Kniffel-Jubel: Feld "kniffel" wechselt bei irgendwem von leer auf 50.
   const prevState = useRef<GameState | null>(game?.state ?? null);

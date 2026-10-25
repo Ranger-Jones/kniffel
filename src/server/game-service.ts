@@ -79,16 +79,44 @@ export function createGame(admin: AdminClient, userId: string) {
 }
 
 /**
- * Wendet eine Aktion an. Mit expectedVersion (nicht-idempotente Aktionen) wird bei
- * abweichender Version STALE geliefert; ohne wird ein Versionskonflikt einmal wiederholt.
+ * Wer aus der Lobby entfernt wird, verliert seine game_players-Zeile und damit (RLS) alle weiteren
+ * Spielstand-Updates. Deshalb bekommt er über den Spielkanal eine Nachricht; der Client prüft sie
+ * durch Nachladen, bevor er reagiert (Broadcasts allein sind nicht vertrauenswürdig).
+ */
+async function notifyKicked(admin: AdminClient, gameId: string, userId: string) {
+  const channel = admin.channel(`game:${gameId}`, { config: { private: true } });
+  try {
+    await channel.httpSend('kicked', { userId });
+  } catch {
+    // Nicht kritisch: spätestens beim nächsten Neuladen merkt der Spieler es.
+  } finally {
+    await admin.removeChannel(channel);
+  }
+}
+
+/** Erwarteter Zug (Sitz + verbleibende Würfe): schützt Würfeln/Eintragen/Überspringen vor Doppelklicks,
+ *  ohne dass ein zwischendurch gespeichertes Halten die Aktion ungültig macht. */
+export interface TurnToken { seat: number; rollsLeft: number }
+export type Expectation = number | TurnToken;
+
+function matches(game: GameRow, expected: Expectation): boolean {
+  if (typeof expected === 'number') return game.version === expected;
+  return game.state.status === 'playing'
+    && game.state.currentSeat === expected.seat && game.state.rollsLeft === expected.rollsLeft;
+}
+
+/**
+ * Wendet eine Aktion an. Mit erwarteter Version bzw. Zug-Token (nicht-idempotente Aktionen) wird bei
+ * Abweichung STALE geliefert. Versionskonflikte beim Speichern werden einmal wiederholt – außer bei
+ * erwarteter Version; ein Zug-Token wird bei der Wiederholung erneut geprüft.
  */
 export async function performAction(
-  admin: AdminClient, userId: string, gameId: string, action: GameAction, expectedVersion?: number,
+  admin: AdminClient, userId: string, gameId: string, action: GameAction, expected?: Expectation,
 ): Promise<ServiceResult<{ version: number; state: GameState }>> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     const game = await loadGame(admin, gameId);
     if (!game) return fail('Spiel nicht gefunden.');
-    if (expectedVersion !== undefined && game.version !== expectedVersion) return fail(STALE);
+    if (expected !== undefined && !matches(game, expected)) return fail(STALE);
 
     const res = applyAction(game.state, userId, action, rollDie);
     if (!res.ok) return fail(res.error);
@@ -99,8 +127,11 @@ export async function performAction(
       return ok({ version: game.version + 1, state: res.state });
     }
     const version = await commit(admin, gameId, game.version, res.state);
-    if (version !== 'conflict') return ok({ version, state: res.state });
-    if (expectedVersion !== undefined) return fail(STALE);
+    if (version !== 'conflict') {
+      if (action.type === 'removePlayer') await notifyKicked(admin, gameId, action.playerId);
+      return ok({ version, state: res.state });
+    }
+    if (typeof expected === 'number') return fail(STALE);
   }
   return fail('Gleichzeitige Aktion – bitte nochmal versuchen.');
 }

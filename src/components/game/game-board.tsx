@@ -37,7 +37,7 @@ export function GameBoard({ game, profiles, online, offlineSince, dispatch, me, 
         <OfflineControls state={state} me={me} name={activeName} online={online} offlineSince={offlineSince} dispatch={dispatch} />
       </div>
       <div className="flex flex-col gap-3 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-        <Scorecard state={state} profiles={profiles} me={me} onScore={(category) => dispatch({ type: 'score', category }, { versioned: true })} />
+        <Scorecard state={state} profiles={profiles} me={me} onScore={(category) => dispatch({ type: 'score', category }, { turn: true })} />
         <Button variant="ghost" size="sm" className="self-start" onClick={() => setConfirmLeave(true)}>Spiel verlassen</Button>
       </div>
       <div className="sticky bottom-3 z-20 flex flex-col gap-3 lg:top-4 lg:bottom-auto lg:col-start-2 lg:row-start-2">
@@ -46,7 +46,7 @@ export function GameBoard({ game, profiles, online, offlineSince, dispatch, me, 
           isMyTurn={activeId === me}
           color={seatColor(activeSeat)}
           activeName={activeName}
-          onRoll={() => dispatch({ type: 'roll' }, { versioned: true })}
+          onRoll={() => dispatch({ type: 'roll' }, { turn: true })}
           onHold={(index, held) => dispatch({ type: 'setHold', index, held })}
         />
         {emojiBar}

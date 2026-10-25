@@ -46,6 +46,31 @@ describe('game-service', () => {
     expect(results.find((r) => !r.ok)).toMatchObject({ error: 'STALE' });
     expect((await loadGame(admin, gameId))!.state.rollsLeft).toBe(2);
   });
+  test('Halten und direkt danach Würfeln: Wurf zählt (Zug-Token statt Version)', async () => {
+    const { users, gameId } = await setup(1);
+    await performAction(admin, users[0].id, gameId, { type: 'start' }, await version(gameId));
+    const first = await performAction(admin, users[0].id, gameId, { type: 'roll' }, { seat: 0, rollsLeft: 3 });
+    expect(first.ok).toBe(true);
+    // Client kennt noch den Stand nach dem ersten Wurf, hält einen Würfel und würfelt sofort.
+    const token = { seat: 0, rollsLeft: 2 };
+    expect((await performAction(admin, users[0].id, gameId, { type: 'setHold', index: 0, held: true })).ok).toBe(true);
+    const second = await performAction(admin, users[0].id, gameId, { type: 'roll' }, token);
+    expect(second.ok).toBe(true);
+    // Doppelklick mit demselben Token wirkt nicht noch einmal.
+    expect(await performAction(admin, users[0].id, gameId, { type: 'roll' }, token)).toMatchObject({ ok: false, error: 'STALE' });
+    expect((await loadGame(admin, gameId))!.state.rollsLeft).toBe(1);
+  });
+  test('paralleles Würfeln mit gleichem Zug-Token wirkt nur einmal', async () => {
+    const { users, gameId } = await setup(1);
+    await performAction(admin, users[0].id, gameId, { type: 'start' }, await version(gameId));
+    const token = { seat: 0, rollsLeft: 3 };
+    const results = await Promise.all([
+      performAction(admin, users[0].id, gameId, { type: 'roll' }, token),
+      performAction(admin, users[0].id, gameId, { type: 'roll' }, token),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect((await loadGame(admin, gameId))!.state.rollsLeft).toBe(2);
+  });
   test('letzter Spieler verlässt Lobby → Spiel gelöscht', async () => {
     const { users, gameId } = await setup(1);
     expect((await performAction(admin, users[0].id, gameId, { type: 'leave' })).ok).toBe(true);
