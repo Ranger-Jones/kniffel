@@ -4,6 +4,11 @@ import { CATEGORIES, isCategory, type Category, type ScoreSheet } from './types'
 export const MAX_PLAYERS = 6;
 export const ROLLS_PER_TURN = 3;
 
+export const TURN_SECONDS_OPTIONS = [null, 30, 60, 90, 120] as const;
+export type TurnSeconds = (typeof TURN_SECONDS_OPTIONS)[number];
+export interface GameSettings { chat: boolean; turnSeconds: TurnSeconds }
+export const DEFAULT_SETTINGS: GameSettings = { chat: true, turnSeconds: null };
+
 export type GameStatus = 'lobby' | 'playing' | 'finished';
 export interface PlayerSlot { id: string; left: boolean }
 export interface GameState {
@@ -17,6 +22,10 @@ export interface GameState {
   scores: Record<string, ScoreSheet>;
   /** Vom Host aus der Lobby entfernte Spieler – dürfen nicht erneut beitreten. */
   banned?: string[];
+  /** Fehlt in Spielständen von vor v2 → Standardwerte. */
+  settings?: GameSettings;
+  /** Beginn des aktuellen Zugs (ISO) – Grundlage für das Zeitlimit. */
+  turnStartedAt?: string | null;
 }
 export type GameAction =
   | { type: 'join' }
@@ -26,26 +35,62 @@ export type GameAction =
   | { type: 'setHold'; index: number; held: boolean }
   | { type: 'score'; category: Category }
   | { type: 'skipTurn' }
-  | { type: 'removePlayer'; playerId: string };
+  | { type: 'removePlayer'; playerId: string }
+  | { type: 'updateSettings'; settings: Partial<GameSettings> }
+  | { type: 'timeout' };
 export type RollDie = () => number;
 export type EngineResult = { ok: true; state: GameState } | { ok: false; error: string };
 
 const ok = (state: GameState): EngineResult => ({ ok: true, state });
 const fail = (error: string): EngineResult => ({ ok: false, error });
 
-function freshTurn() {
+function freshTurn(now: number | null = null) {
   return {
     dice: [null, null, null, null, null],
     held: [false, false, false, false, false],
     rollsLeft: ROLLS_PER_TURN,
+    turnStartedAt: now === null ? null : new Date(now).toISOString(),
   };
+}
+
+export function getSettings(state: GameState): GameSettings {
+  return { ...DEFAULT_SETTINGS, ...state.settings };
+}
+
+/** Zeitpunkt (ms), ab dem der aktuelle Zug als abgelaufen gilt – null ohne Limit. */
+export function turnDeadline(state: GameState): number | null {
+  const { turnSeconds } = getSettings(state);
+  if (state.status !== 'playing' || !turnSeconds || !state.turnStartedAt) return null;
+  return Date.parse(state.turnStartedAt) + turnSeconds * 1000;
+}
+
+/** Freies Feld mit den meisten Punkten; bei Gleichstand das erste in Zettel-Reihenfolge. */
+export function bestCategory(sheet: ScoreSheet, dice: number[]): Category {
+  let best: Category | null = null;
+  let bestScore = -1;
+  for (const c of CATEGORIES) {
+    if (sheet[c] !== null) continue;
+    const score = scoreCategory(c, dice);
+    if (score > bestScore) {
+      best = c;
+      bestScore = score;
+    }
+  }
+  if (!best) throw new Error('Kein freies Feld');
+  return best;
+}
+
+function validSettings(patch: Partial<GameSettings>): boolean {
+  if ('chat' in patch && typeof patch.chat !== 'boolean') return false;
+  if ('turnSeconds' in patch && !(TURN_SECONDS_OPTIONS as readonly unknown[]).includes(patch.turnSeconds)) return false;
+  return Object.keys(patch).every((k) => k === 'chat' || k === 'turnSeconds');
 }
 
 export function createGameState(hostId: string): GameState {
   return createRematchState(hostId, [hostId]);
 }
 
-export function createRematchState(hostId: string, playerIds: string[]): GameState {
+export function createRematchState(hostId: string, playerIds: string[], settings: GameSettings = DEFAULT_SETTINGS): GameState {
   return {
     status: 'lobby',
     hostId,
@@ -53,6 +98,7 @@ export function createRematchState(hostId: string, playerIds: string[]): GameSta
     currentSeat: 0,
     ...freshTurn(),
     scores: Object.fromEntries(playerIds.map((id) => [id, emptySheet()])),
+    settings: { ...settings },
   };
 }
 
@@ -74,12 +120,12 @@ export function placements(state: GameState): Record<string, number> {
 }
 
 /** Nächster aktiver Spieler mit offenem Zettel nach currentSeat; sonst Spielende. */
-function advanceTurn(state: GameState): GameState {
+function advanceTurn(state: GameState, now: number): GameState {
   const n = state.players.length;
   for (let step = 1; step <= n; step++) {
     const seat = (state.currentSeat + step) % n;
     const p = state.players[seat];
-    if (!p.left && !isComplete(state.scores[p.id])) return { ...state, ...freshTurn(), currentSeat: seat };
+    if (!p.left && !isComplete(state.scores[p.id])) return { ...state, ...freshTurn(now), currentSeat: seat };
   }
   return { ...state, ...freshTurn(), status: 'finished' };
 }
@@ -92,7 +138,7 @@ function nextActiveAfter(players: PlayerSlot[], seat: number): PlayerSlot | unde
   return undefined;
 }
 
-function withoutPlayer(state: GameState, playerId: string): GameState {
+function withoutPlayer(state: GameState, playerId: string, now: number): GameState {
   if (state.status === 'lobby') {
     const players = state.players.filter((p) => p.id !== playerId);
     const scores = { ...state.scores };
@@ -105,7 +151,7 @@ function withoutPlayer(state: GameState, playerId: string): GameState {
   let next: GameState = { ...state, players };
   if (players.every((p) => p.left)) return { ...next, ...freshTurn(), status: 'finished' };
   if (state.hostId === playerId) next.hostId = nextActiveAfter(players, seat)!.id;
-  if (state.currentSeat === seat) next = advanceTurn(next);
+  if (state.currentSeat === seat) next = advanceTurn(next, now);
   return next;
 }
 
@@ -115,7 +161,9 @@ function requireTurn(state: GameState, actorId: string): string | null {
   return null;
 }
 
-export function applyAction(state: GameState, actorId: string, action: GameAction, rollDie: RollDie): EngineResult {
+export function applyAction(
+  state: GameState, actorId: string, action: GameAction, rollDie: RollDie, now: number = Date.now(),
+): EngineResult {
   if (state.status === 'finished') return fail('Das Spiel ist bereits beendet.');
   const isActiveMember = state.players.some((p) => p.id === actorId && !p.left);
   const isHost = state.hostId === actorId;
@@ -134,18 +182,18 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
     }
     case 'leave':
       if (!isActiveMember) return fail('Du bist nicht in diesem Spiel.');
-      return ok(withoutPlayer(state, actorId));
+      return ok(withoutPlayer(state, actorId, now));
     case 'removePlayer': {
       if (!isHost) return fail('Nur der Host kann Spieler entfernen.');
       if (action.playerId === actorId) return fail('Du kannst dich nicht selbst entfernen.');
       if (!state.players.some((p) => p.id === action.playerId && !p.left)) return fail('Spieler nicht gefunden.');
-      const next = withoutPlayer(state, action.playerId);
+      const next = withoutPlayer(state, action.playerId, now);
       return ok(state.status === 'lobby' ? { ...next, banned: [...(state.banned ?? []), action.playerId] } : next);
     }
     case 'start':
       if (state.status !== 'lobby') return fail('Das Spiel läuft bereits.');
       if (!isHost) return fail('Nur der Host kann das Spiel starten.');
-      return ok({ ...state, status: 'playing', currentSeat: 0, ...freshTurn() });
+      return ok({ ...state, status: 'playing', currentSeat: 0, ...freshTurn(now) });
     case 'roll': {
       const err = requireTurn(state, actorId);
       if (err) return fail(err);
@@ -171,7 +219,7 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
       if (sheet[action.category] !== null) return fail('Dieses Feld ist schon belegt.');
       const value = scoreCategory(action.category, state.dice as number[]);
       const scores = { ...state.scores, [actorId]: { ...sheet, [action.category]: value } };
-      return ok(advanceTurn({ ...state, scores }));
+      return ok(advanceTurn({ ...state, scores }, now));
     }
     case 'skipTurn': {
       if (state.status !== 'playing') return fail('Das Spiel hat noch nicht begonnen.');
@@ -181,7 +229,26 @@ export function applyAction(state: GameState, actorId: string, action: GameActio
       const sheet = state.scores[targetId];
       const free = CATEGORIES.find((c) => sheet[c] === null)!;
       const scores = { ...state.scores, [targetId]: { ...sheet, [free]: 0 } };
-      return ok(advanceTurn({ ...state, scores }));
+      return ok(advanceTurn({ ...state, scores }, now));
+    }
+    case 'updateSettings': {
+      if (!isHost) return fail('Nur der Host kann Einstellungen ändern.');
+      if (state.status !== 'lobby') return fail('Einstellungen gehen nur in der Lobby.');
+      if (!validSettings(action.settings)) return fail('Ungültige Einstellung.');
+      return ok({ ...state, settings: { ...getSettings(state), ...action.settings } });
+    }
+    case 'timeout': {
+      if (state.status !== 'playing') return fail('Das Spiel hat noch nicht begonnen.');
+      if (!isActiveMember) return fail('Du bist nicht in diesem Spiel.');
+      const deadline = turnDeadline(state);
+      if (deadline === null) return fail('Kein Zeitlimit aktiv.');
+      if (now < deadline) return fail('Die Zeit ist noch nicht abgelaufen.');
+      const targetId = currentPlayerId(state)!;
+      const dice = state.rollsLeft === ROLLS_PER_TURN ? state.dice.map(() => rollDie()) : (state.dice as number[]);
+      const sheet = state.scores[targetId];
+      const category = bestCategory(sheet, dice as number[]);
+      const scores = { ...state.scores, [targetId]: { ...sheet, [category]: scoreCategory(category, dice as number[]) } };
+      return ok(advanceTurn({ ...state, dice, scores }, now));
     }
   }
 }

@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
-  applyAction, createGameState, createRematchState, currentPlayerId, currentRound, placements,
-  type GameAction, type GameState,
+  applyAction, bestCategory, createGameState, createRematchState, currentPlayerId, currentRound, getSettings,
+  placements, turnDeadline, type GameAction, type GameState,
 } from './engine';
+import { emptySheet } from './scoring';
 import { CATEGORIES } from './types';
 
 const A = 'a', B = 'b', C = 'c';
@@ -214,4 +215,83 @@ test('Revanche-Zustand: gleiche Spieler, Host = Auslöser, leere Zettel', () => 
   const s = createRematchState(B, [A, B]);
   expect(s).toMatchObject({ status: 'lobby', hostId: B, players: [{ id: A, left: false }, { id: B, left: false }] });
   expect(s.scores[A].chance).toBeNull();
+});
+
+describe('Einstellungen & Zeitlimit', () => {
+  const T0 = Date.UTC(2026, 9, 25, 12, 0, 0);
+  function at(state: GameState, actor: string, action: GameAction, now: number, roll = six): GameState {
+    const res = applyAction(state, actor, action, roll, now);
+    if (!res.ok) throw new Error(res.error);
+    return res.state;
+  }
+  function errorAt(state: GameState, actor: string, action: GameAction, now: number, msg: RegExp) {
+    const res = applyAction(state, actor, action, six, now);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(msg);
+  }
+  const timed = (seconds: 30 | 60, ...ids: string[]) => {
+    const s = at(lobby(...ids), ids[0], { type: 'updateSettings', settings: { turnSeconds: seconds } }, T0);
+    return at(s, ids[0], { type: 'start' }, T0);
+  };
+
+  test('Standard: Chat an, kein Zeitlimit', () => {
+    expect(getSettings(createGameState(A))).toEqual({ chat: true, turnSeconds: null });
+  });
+  test('Start und Zugwechsel setzen den Zugbeginn', () => {
+    let s = at(lobby(A, B), A, { type: 'start' }, T0);
+    expect(s.turnStartedAt).toBe(new Date(T0).toISOString());
+    s = at(s, A, { type: 'roll' }, T0 + 5000);
+    expect(s.turnStartedAt).toBe(new Date(T0).toISOString());
+    s = at(s, A, { type: 'score', category: 'chance' }, T0 + 9000);
+    expect(s.turnStartedAt).toBe(new Date(T0 + 9000).toISOString());
+  });
+  test('updateSettings: nur Host, nur Lobby, nur erlaubte Werte, Teil-Update', () => {
+    errorAt(lobby(A, B), B, { type: 'updateSettings', settings: { chat: false } }, T0, /Host/);
+    errorAt(started(A), A, { type: 'updateSettings', settings: { chat: false } }, T0, /Lobby/);
+    errorAt(lobby(A), A, { type: 'updateSettings', settings: { turnSeconds: 45 as never } }, T0, /Ungültige Einstellung/);
+    let s = at(lobby(A), A, { type: 'updateSettings', settings: { turnSeconds: 90 } }, T0);
+    s = at(s, A, { type: 'updateSettings', settings: { chat: false } }, T0);
+    expect(getSettings(s)).toEqual({ chat: false, turnSeconds: 90 });
+    expect(turnDeadline(at(s, A, { type: 'start' }, T0))).toBe(T0 + 90_000);
+  });
+  test('timeout ohne Limit / zu früh / von Außenstehenden wird abgelehnt', () => {
+    errorAt(at(lobby(A, B), A, { type: 'start' }, T0), B, { type: 'timeout' }, T0 + 999_999, /Kein Zeitlimit/);
+    const s = timed(30, A, B);
+    errorAt(s, B, { type: 'timeout' }, T0 + 29_999, /noch nicht abgelaufen/);
+    errorAt(s, C, { type: 'timeout' }, T0 + 31_000, /nicht in diesem Spiel/);
+  });
+  test('timeout ohne Wurf: einmal würfeln, bestes Feld eintragen, nächster ist dran', () => {
+    const s = at(timed(30, A, B), B, { type: 'timeout' }, T0 + 30_000, six);
+    expect(s.scores[A].kniffel).toBe(50);
+    expect(currentPlayerId(s)).toBe(B);
+    expect(s.turnStartedAt).toBe(new Date(T0 + 30_000).toISOString());
+  });
+  test('timeout nach Wurf: aktuelle Würfel, bestes Feld', () => {
+    let s = timed(60, A, B);
+    s = at(s, A, { type: 'roll' }, T0 + 1000, dieSeq(1, 2, 3, 4, 5));
+    s = at(s, A, { type: 'timeout' }, T0 + 61_000);
+    expect(s.scores[A].largeStraight).toBe(40);
+  });
+  test('bestCategory nimmt bei Gleichstand das erste Feld', () => {
+    const sheet = { ...emptySheet(), ones: 0 };
+    expect(bestCategory(sheet, [2, 2, 3, 3, 4])).toBe('chance');
+    expect(bestCategory(emptySheet(), [1, 1, 1, 1, 2])).toBe('threeKind');
+    const onlyLow = Object.fromEntries(Object.keys(emptySheet()).map((c) => [c, 0])) as ReturnType<typeof emptySheet>;
+    onlyLow.fives = null;
+    onlyLow.sixes = null;
+    expect(bestCategory(onlyLow, [1, 2, 3, 4, 6])).toBe('sixes');
+  });
+  test('alter Spielstand ohne Einstellungen funktioniert weiter', () => {
+    const old = started(A, B) as GameState & Record<string, unknown>;
+    delete old.settings;
+    delete old.turnStartedAt;
+    expect(getSettings(old)).toEqual({ chat: true, turnSeconds: null });
+    expect(turnDeadline(old)).toBeNull();
+    expect(at(old, A, { type: 'roll' }, T0).rollsLeft).toBe(2);
+    errorAt(old, B, { type: 'timeout' }, T0, /Kein Zeitlimit/);
+  });
+  test('Revanche übernimmt Einstellungen', () => {
+    const s = createRematchState(B, [A, B], { chat: false, turnSeconds: 60 });
+    expect(getSettings(s)).toEqual({ chat: false, turnSeconds: 60 });
+  });
 });
