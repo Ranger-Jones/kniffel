@@ -22,7 +22,6 @@ export function Avatar({
       ) : (
         <span aria-hidden>{name.slice(0, 2).toUpperCase()}</span>
       )}
-      <span className="sr-only">{name}</span>
     </span>
   );
 }
