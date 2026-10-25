@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChatCard, ChatSheetButton } from '@/components/game/chat';
 import { ConnectionBanner } from '@/components/game/connection-banner';
@@ -21,9 +21,11 @@ interface Props {
   initialProfiles: Record<string, ProfileLite>;
   me: string;
   friends: ProfileLite[];
+  quickEmojis: string[];
 }
 
-export function GameClient({ initial, initialProfiles, me, friends }: Props) {
+export function GameClient({ initial, initialProfiles, me, friends, quickEmojis }: Props) {
+  const [quick, setQuick] = useState(quickEmojis);
   const router = useRouter();
   const g = useGame(initial, initialProfiles, me);
   const { game } = g;
@@ -71,7 +73,7 @@ export function GameClient({ initial, initialProfiles, me, friends }: Props) {
       {game.state.status === 'playing' && (
         <GameBoard
           game={game} profiles={g.profiles} online={g.online} offlineSince={g.offlineSince} dispatch={g.dispatch} me={me}
-          emojiBar={<EmojiBar onSend={g.sendEmoji} />}
+          emojiBar={<EmojiBar quick={quick} onQuickChange={setQuick} onSend={g.sendEmoji} />}
           chatCard={chatCard}
           chatButton={chatOn ? <ChatSheetButton {...chatProps} /> : null}
         />

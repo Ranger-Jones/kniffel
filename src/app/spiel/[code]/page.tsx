@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/server';
 import { joinGame, loadGameByCode } from '@/server/game-service';
+import { getQuickEmojis } from '@/server/profile-service';
 import { listFriends } from '@/server/social-service';
 import { GameClient } from './game-client';
 import { JoinError } from './join-error';
@@ -24,6 +25,7 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
   const ids = game.state.players.map((p) => p.id);
   const { data: profiles } = await admin.from('profiles').select('id, username, avatar_url').in('id', ids);
   const friends = (await listFriends(admin, user.id)).friends.map((f) => f.profile);
+  const quickEmojis = await getQuickEmojis(admin, user.id);
   return (
     <GameClient
       key={game.id}
@@ -31,6 +33,7 @@ export default async function GamePage({ params }: { params: Promise<{ code: str
       initialProfiles={Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))}
       me={user.id}
       friends={friends}
+      quickEmojis={quickEmojis}
     />
   );
 }
