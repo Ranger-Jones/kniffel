@@ -17,10 +17,33 @@ export function ChatBox({ chat, profiles, me, seatColors, autoFocus }: BoxProps)
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const list = useRef<HTMLOListElement>(null);
+  const atBottom = useRef(true);
+  const [missed, setMissed] = useState(0);
+  const lastMine = chat.messages.at(-1)?.user_id === me;
 
   useEffect(() => {
-    list.current?.scrollTo({ top: list.current.scrollHeight });
-  }, [chat.messages.length]);
+    const el = list.current;
+    if (!el) return;
+    if (atBottom.current || lastMine) {
+      el.scrollTo({ top: el.scrollHeight });
+    } else {
+      // Beim Zurücklesen nicht wegspringen – stattdessen Hinweis anzeigen.
+      const t = setTimeout(() => setMissed((n) => n + 1), 0);
+      return () => clearTimeout(t);
+    }
+  }, [chat.messages.length, lastMine]);
+
+  function onScroll() {
+    const el = list.current;
+    if (!el) return;
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (atBottom.current && missed) setMissed(0);
+  }
+
+  function jumpDown() {
+    list.current?.scrollTo({ top: list.current.scrollHeight, behavior: 'smooth' });
+    setMissed(0);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,8 +58,8 @@ export function ChatBox({ chat, profiles, me, seatColors, autoFocus }: BoxProps)
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ol ref={list} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-3" aria-live="polite">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <ol ref={list} onScroll={onScroll} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-3" aria-live="polite">
         {chat.messages.length === 0 && <li className="m-auto text-sm text-ink-soft">Noch keine Nachrichten. Sag Hallo!</li>}
         {chat.messages.map((m) => {
           const mine = m.user_id === me;
@@ -52,6 +75,15 @@ export function ChatBox({ chat, profiles, me, seatColors, autoFocus }: BoxProps)
           );
         })}
       </ol>
+      {missed > 0 && (
+        <button
+          type="button"
+          onClick={jumpDown}
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full bg-sky px-4 py-2 text-sm font-bold text-white shadow-[0_3px_0_rgb(0_0_0/0.15)]"
+        >
+          Neue Nachrichten ↓
+        </button>
+      )}
       <form onSubmit={submit} className="flex gap-2 border-t border-line p-3">
         <input
           value={text}

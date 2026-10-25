@@ -6,7 +6,7 @@ import { Button } from './button';
 export function SubmitButton({ children, pendingLabel, ...props }: React.ComponentProps<typeof Button> & { pendingLabel?: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || props.disabled} aria-busy={pending} {...props}>
+    <Button {...props} type="submit" disabled={pending || props.disabled} aria-busy={pending}>
       {pending ? (pendingLabel ?? children) : children}
     </Button>
   );

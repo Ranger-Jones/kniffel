@@ -14,18 +14,23 @@ interface Props { state: GameState; dispatch: UseGame['dispatch']; canReport: bo
 export function TurnTimer({ state, dispatch, canReport }: Props) {
   const deadline = turnDeadline(state);
   const total = (getSettings(state).turnSeconds ?? 0) * 1000;
-  const [now, setNow] = useState(() => Date.now());
+  // Erst im Browser lesen: Server und Client würden sonst unterschiedliche Restzeiten rendern.
+  const [now, setNow] = useState<number | null>(null);
   const reported = useRef<{ key: string; attempts: number; last: number }>({ key: '', attempts: 0, last: 0 });
   const key = `${state.currentSeat}-${state.rollsLeft}-${state.turnStartedAt}`;
 
   useEffect(() => {
     if (deadline === null) return;
+    const first = setTimeout(() => setNow(Date.now()), 0);
     const t = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [deadline]);
 
   useEffect(() => {
-    if (deadline === null || !canReport || now < deadline + REPORT_DELAY_MS) return;
+    if (deadline === null || now === null || !canReport || now < deadline + REPORT_DELAY_MS) return;
     const r = reported.current;
     if (r.key !== key) reported.current = { key, attempts: 0, last: 0 };
     const cur = reported.current;
@@ -38,7 +43,7 @@ export function TurnTimer({ state, dispatch, canReport }: Props) {
   }, [now, deadline, canReport, key, dispatch]);
 
   if (deadline === null) return null;
-  const left = Math.max(0, deadline - now);
+  const left = now === null ? total : Math.max(0, deadline - now);
   const seconds = Math.ceil(left / 1000);
   const urgent = seconds <= 10;
   return (
@@ -50,7 +55,7 @@ export function TurnTimer({ state, dispatch, canReport }: Props) {
         />
       </div>
       <span className={cx('tabular w-12 text-right font-display text-lg font-extrabold', urgent ? 'text-tomato' : 'text-white')}>
-        {seconds}s
+        {now === null ? '–' : `${seconds}s`}
       </span>
     </div>
   );

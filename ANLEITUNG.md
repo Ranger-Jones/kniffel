@@ -74,5 +74,5 @@ Im Supabase-Dashboard oben auf **Connect** klicken oder **Project Settings → A
 - **Passwort vergessen:** Es gibt keine „Passwort vergessen“-Mail. Im Supabase-Dashboard unter **Authentication → Users** den Nutzer anklicken und ein neues Passwort setzen (oder den Nutzer löschen, dann kann er sich neu registrieren).
 - **Updates:** Änderungen am Code einfach pushen (`git push`), dann deployt Vercel automatisch. Neue Datenbank-Migrationen danach mit `pnpm exec supabase db push` hochladen.
 - **Lokal weiterentwickeln:** siehe [README.md](README.md) (Docker Desktop muss laufen).
-- **Realtime-Einstellungen:** Nichts ändern. Insbesondere **„Allow public access“** unter Realtime → Settings eingeschaltet lassen, sonst kommen Einladungen nicht mehr live an.
+- **Realtime-Einstellungen:** Nichts ändern. Spiel, Chat und Online-Status laufen über private Kanäle. **„Allow public access“** unter Realtime → Settings trotzdem eingeschaltet lassen, sonst kommen Einladungen und Freundschaftsanfragen nicht mehr live an.
 - **Kosten:** Für eine Freundesrunde reichen die Free-Tarife von Supabase und Vercel locker.

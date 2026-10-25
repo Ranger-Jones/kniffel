@@ -20,7 +20,7 @@ export function useChat(gameId: string, enabled: boolean) {
     (async () => {
       await supabase.realtime.setAuth();
       if (cancelled) return;
-      channel = supabase.channel(`chat:${gameId}`)
+      channel = supabase.channel(`chat:${gameId}`, { config: { private: true } })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_messages', filter: `game_id=eq.${gameId}` },
           (payload) => add(payload.new as ChatMessage))
         .subscribe(async (status) => {

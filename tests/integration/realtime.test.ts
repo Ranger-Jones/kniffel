@@ -80,3 +80,16 @@ describe('Entfernen aus der Lobby', () => {
     expect(await received).toEqual({ userId: kicked.id });
   });
 });
+
+describe('private Chat-Kanäle', () => {
+  test('nur Mitglieder dürfen chat:<id> betreten', async () => {
+    const a = await createTestUser('ccA');
+    const stranger = await createTestUser('ccX');
+    const game = await createGame(admin, a.id);
+    if (!game.ok) throw new Error(game.error);
+    await a.client.realtime.setAuth();
+    await stranger.client.realtime.setAuth();
+    expect(await subscribeStatus(a.client, `chat:${game.data.id}`)).toBe('SUBSCRIBED');
+    expect(await subscribeStatus(stranger.client, `chat:${game.data.id}`)).toBe('CHANNEL_ERROR');
+  });
+});

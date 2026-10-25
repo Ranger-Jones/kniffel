@@ -100,7 +100,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends, chatSlot 
                   />
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate font-bold">{profile?.username ?? '…'}</span>
+                  <span className="block truncate font-bold" title={profile?.username}>{profile?.username ?? '…'}</span>
                   <span className="text-xs text-ink-soft">{p.id === state.hostId ? '👑 Host' : p.id === me ? 'Du' : 'Spieler'}</span>
                 </span>
                 {isHost && p.id !== me && (

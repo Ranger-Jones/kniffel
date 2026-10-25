@@ -37,7 +37,9 @@ export function PlayerBar({ state, profiles, online, me }: Props) {
                   <span className={cx('absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-paper', online.has(p.id) ? 'bg-mint' : 'bg-line')} />
                 )}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-bold">{p.id === me ? 'Du' : profiles[p.id]?.username ?? '…'}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-bold" title={profiles[p.id]?.username}>
+                {p.id === me ? 'Du' : profiles[p.id]?.username ?? '…'}
+              </span>
               <span className="tabular shrink-0 text-sm font-extrabold text-ink-soft">{p.left ? 'raus' : totalScore(state.scores[p.id])}</span>
             </li>
           );

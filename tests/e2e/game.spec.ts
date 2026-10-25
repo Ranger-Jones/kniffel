@@ -5,6 +5,9 @@ const run = Date.now().toString(36);
 
 async function unlock(page: Page) {
   await page.goto('/zugang');
+  // Schon freigeschaltet → /zugang leitet (nach dem Streamen) weiter; sonst erscheint das Formular.
+  await page.waitForFunction(() => !location.pathname.startsWith('/zugang') || !!document.querySelector('input[name="answer"]'));
+  if (!new URL(page.url()).pathname.startsWith('/zugang')) return;
   await page.getByLabel('Wie heißt mein Lieblings PWC Mitarbeiter?').fill('Paul');
   await page.getByRole('button', { name: 'Weiter' }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -148,6 +151,15 @@ test('Chat, Emoji-Auswahl und Zeitlimit', async ({ browser }) => {
   await expect(a.getByTestId('turn-indicator')).toHaveText(/Du bist dran/);
   await expect(a.getByRole('timer')).toBeVisible();
 
+  // Neu laden mit laufendem Countdown: keine Hydration-Fehler.
+  const consoleErrors: string[] = [];
+  a.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+  a.on('pageerror', (e) => consoleErrors.push(e.message));
+  await a.reload();
+  await expect(a.getByRole('timer')).toBeVisible();
+  await a.waitForTimeout(1500);
+  expect(consoleErrors.filter((t) => /hydrat|#418|#423|#425/i.test(t))).toEqual([]);
+
   // Emoji aus der großen Auswahl kommt beim anderen an
   await a.getByRole('button', { name: 'Mehr Reaktionen' }).click();
   await a.getByRole('dialog').getByRole('button', { name: 'Reaktion 🐐 senden' }).click();
@@ -165,4 +177,44 @@ test('Chat, Emoji-Auswahl und Zeitlimit', async ({ browser }) => {
     (cells) => cells.filter((c) => c.textContent!.trim() !== '').length,
   );
   expect(filledB).toBe(1);
+});
+
+test('kein horizontaler Überlauf auf dem Handy (360 px)', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  const name = (`ov_${run}xxxxxxxxxxxxxxxxxxxx`).slice(0, 20);
+  async function noOverflow(label: string) {
+    await page.waitForTimeout(400);
+    const res = await page.evaluate(() => {
+      const bad: string[] = [];
+      for (const el of document.querySelectorAll('body *')) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.right > window.innerWidth + 1 && !el.closest('.overflow-x-auto, .overflow-y-auto, [hidden], dialog:not([open])')) {
+          bad.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
+        }
+      }
+      return { scroll: document.documentElement.scrollWidth, width: window.innerWidth, bad: bad.slice(0, 3) };
+    });
+    expect({ label, ...res }).toEqual({ label, scroll: res.width, width: res.width, bad: [] });
+  }
+  await page.goto('/');
+  await noOverflow('zugang');
+  await unlock(page);
+  await noOverflow('startseite');
+  await page.goto('/login');
+  await noOverflow('login');
+  await register(page, name);
+  await noOverflow('dashboard');
+  for (const path of ['/freunde', '/bestenliste', `/profil/${name}`]) {
+    await page.goto(path);
+    await noOverflow(path);
+  }
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Neues Spiel' }).click();
+  await expect(page).toHaveURL(/\/spiel\//);
+  await noOverflow('lobby');
+  await page.getByRole('button', { name: 'Spiel starten' }).click();
+  await page.getByTestId('roll-button').click();
+  await noOverflow('spiel');
 });

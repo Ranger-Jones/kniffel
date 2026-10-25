@@ -94,7 +94,7 @@ export function Scorecard({ state, profiles, me, onScore }: Props) {
         >
           <span className="flex flex-col items-center gap-1">
             <Avatar profile={profiles[p.id]} size="sm" ring={seatColor(p.seat)} />
-            <span className="max-w-16 truncate text-xs font-bold">{p.id === me ? 'Du' : profiles[p.id]?.username ?? '…'}</span>
+            <span className="max-w-16 truncate text-xs font-bold" title={profiles[p.id]?.username}>{p.id === me ? 'Du' : profiles[p.id]?.username ?? '…'}</span>
           </span>
         </th>
       ))}

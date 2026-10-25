@@ -37,13 +37,28 @@ export function GameSettingsPanel({ settings, isHost, onChange }: Props) {
       <div className="flex flex-col gap-2">
         <span id="timer-label" className="font-bold">Zeit pro Zug</span>
         {isHost ? (
-          <div role="radiogroup" aria-labelledby="timer-label" className="grid grid-cols-5 gap-1 rounded-2xl bg-mist p-1">
+          <div
+            role="radiogroup"
+            aria-labelledby="timer-label"
+            className="grid grid-cols-5 gap-1 rounded-2xl bg-mist p-1"
+            onKeyDown={(e) => {
+              const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+              if (!step) return;
+              e.preventDefault();
+              const i = TURN_SECONDS_OPTIONS.indexOf(settings.turnSeconds);
+              const next = TURN_SECONDS_OPTIONS[(i + step + TURN_SECONDS_OPTIONS.length) % TURN_SECONDS_OPTIONS.length];
+              onChange({ turnSeconds: next });
+              const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+              buttons[TURN_SECONDS_OPTIONS.indexOf(next)]?.focus();
+            }}
+          >
             {TURN_SECONDS_OPTIONS.map((v) => (
               <button
                 key={String(v)}
                 type="button"
                 role="radio"
                 aria-checked={settings.turnSeconds === v}
+                tabIndex={settings.turnSeconds === v ? 0 : -1}
                 onClick={() => onChange({ turnSeconds: v })}
                 className={cx(
                   'min-h-11 rounded-xl px-1 text-sm font-bold transition-colors',
