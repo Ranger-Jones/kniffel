@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,10 @@ type Props = Pick<UseGame, 'profiles' | 'online' | 'dispatch'> & {
   game: NonNullable<UseGame['game']>;
   me: string;
   friends: ProfileLite[];
+  chatSlot?: ReactNode;
 };
 
-export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) {
+export function Lobby({ game, profiles, online, dispatch, me, friends, chatSlot }: Props) {
   const router = useRouter();
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -152,6 +153,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
           onChange={(patch) => dispatch({ type: 'updateSettings', settings: patch }, { versioned: true })}
         />
       </Card>
+      {chatSlot}
       <Card className="flex flex-col gap-4 p-6">
         <h2 className="text-2xl font-extrabold">Freunde einladen</h2>
         {friends.length === 0 ? (

@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Das Dev-Symbol unten links verdeckt sonst den Chat-Button auf dem Handy.
+  devIndicators: false,
   turbopack: {
     rules: {
       '*.css': {

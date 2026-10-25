@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Avatar } from '@/components/ui/avatar';
 import { Button, buttonClass } from '@/components/ui/button';
@@ -17,9 +17,9 @@ import { rematchAction } from '@/server/game-actions';
 const MEDALS = ['🥇', '🥈', '🥉'];
 const STEP_HEIGHT = ['h-32', 'h-24', 'h-16'];
 
-type Props = { game: NonNullable<UseGame['game']>; profiles: UseGame['profiles']; me: string };
+type Props = { game: NonNullable<UseGame['game']>; profiles: UseGame['profiles']; me: string; chatSlot?: ReactNode };
 
-export function Results({ game, profiles, me }: Props) {
+export function Results({ game, profiles, me, chatSlot }: Props) {
   const router = useRouter();
   const { state } = game;
   const places = placements(state);
@@ -101,6 +101,8 @@ export function Results({ game, profiles, me }: Props) {
           ))}
         </ol>
       </Card>
+
+      {chatSlot}
 
       <div className="flex flex-wrap justify-center gap-3">
         {amActive && <Button size="lg" onClick={startRematch} disabled={pending}>Revanche</Button>}
