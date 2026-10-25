@@ -10,6 +10,7 @@ import { DiceTray } from './dice-tray';
 import { OfflineControls } from './offline-controls';
 import { PlayerBar } from './player-bar';
 import { Scorecard } from './scorecard';
+import { TurnTimer } from './turn-timer';
 
 type Props = Pick<UseGame, 'profiles' | 'online' | 'offlineSince' | 'dispatch'> & {
   game: NonNullable<UseGame['game']>;
@@ -42,6 +43,7 @@ export function GameBoard({ game, profiles, online, offlineSince, dispatch, me, 
       </div>
       <div className="sticky bottom-3 z-20 flex flex-col gap-3 lg:top-4 lg:bottom-auto lg:col-start-2 lg:row-start-2">
         <DiceTray
+          timer={<TurnTimer state={state} dispatch={dispatch} canReport={state.players.some((p) => p.id === me && !p.left)} />}
           state={state}
           isMyTurn={activeId === me}
           color={seatColor(activeSeat)}

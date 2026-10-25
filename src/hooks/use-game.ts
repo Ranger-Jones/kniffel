@@ -117,7 +117,7 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
    * turn: Aktion gilt nur für diesen Zug/Wurf (Würfeln, Eintragen, Überspringen) – gegen Doppelklicks,
    *       ohne dass ein gerade gespeichertes Halten sie verwirft.
    */
-  const dispatch = useCallback(async (action: GameAction, opts: { versioned?: boolean; turn?: boolean } = {}) => {
+  const dispatch = useCallback(async (action: GameAction, opts: { versioned?: boolean; turn?: boolean; silent?: boolean } = {}) => {
     const cur = gameRef.current;
     if (!cur) return false;
     const expected = opts.turn
@@ -130,7 +130,7 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
     }
     // Veralteter Stand (z. B. verpasstes Realtime-Update): still nachladen, damit der nächste Klick klappt.
     if (res.error === STALE) await refetch();
-    else toast.error(res.error);
+    else if (!opts.silent) toast.error(res.error);
     return false;
   }, [apply, refetch]);
 

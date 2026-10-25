@@ -36,6 +36,13 @@ describe('Chat', () => {
     await wait(1100);
     expect((await sendChatMessage(admin, a.id, gameId, 'drei')).ok).toBe(true);
   });
+  test('gleichzeitig abgeschickte Nachrichten umgehen das Limit nicht', async () => {
+    const { users: [a], gameId } = await lobbyWith(1);
+    const results = await Promise.all(Array.from({ length: 5 }, (_, i) => sendChatMessage(admin, a.id, gameId, `spam ${i}`)));
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    const { data } = await admin.from('game_messages').select('id').eq('game_id', gameId);
+    expect(data).toHaveLength(1);
+  });
   test('ausgeschalteter Chat nimmt nichts an', async () => {
     const { users: [a], gameId } = await lobbyWith(1);
     const v = (await loadGame(admin, gameId))!.version;

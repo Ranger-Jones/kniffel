@@ -6,6 +6,7 @@ import { cx } from '@/lib/cx';
 import { Die } from './die';
 
 interface Props {
+  timer?: React.ReactNode;
   state: GameState;
   isMyTurn: boolean;
   color: string;
@@ -14,7 +15,7 @@ interface Props {
   onHold: (index: number, held: boolean) => Promise<unknown>;
 }
 
-export function DiceTray({ state, isMyTurn, color, activeName, onRoll, onHold }: Props) {
+export function DiceTray({ timer, state, isMyTurn, color, activeName, onRoll, onHold }: Props) {
   const [pending, setPending] = useState(false);
   // Laufende eigene Halte-Anfragen: solange welche unterwegs sind, gilt die lokale Auswahl,
   // damit Zwischenstände vom Server die Würfel nicht flackern lassen.
@@ -67,6 +68,7 @@ export function DiceTray({ state, isMyTurn, color, activeName, onRoll, onHold }:
       aria-label="Würfel"
       className="rounded-[1.75rem] bg-tray p-4 text-white shadow-[0_6px_0_var(--color-tray-deep)] [--die:3.25rem] sm:[--die:3.75rem] sm:p-5"
     >
+      {timer}
       <div className="flex min-h-[calc(var(--die)+1.5rem)] items-center justify-between gap-2 pt-3">
         {state.dice.map((value, i) => (
           <Die

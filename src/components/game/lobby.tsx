@@ -7,8 +7,9 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
+import { GameSettingsPanel } from './game-settings';
 import type { UseGame } from '@/hooks/use-game';
-import { MAX_PLAYERS } from '@/lib/kniffel/engine';
+import { getSettings, MAX_PLAYERS } from '@/lib/kniffel/engine';
 import { seatColor } from '@/lib/player-colors';
 import { inviteAction } from '@/server/game-actions';
 import type { ProfileLite } from '@/server/social-service';
@@ -143,6 +144,14 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
         </div>
       </Modal>
 
+      <div className="flex flex-col gap-5">
+      <Card className="p-6">
+        <GameSettingsPanel
+          settings={getSettings(state)}
+          isHost={isHost}
+          onChange={(patch) => dispatch({ type: 'updateSettings', settings: patch }, { versioned: true })}
+        />
+      </Card>
       <Card className="flex flex-col gap-4 p-6">
         <h2 className="text-2xl font-extrabold">Freunde einladen</h2>
         {friends.length === 0 ? (
@@ -165,6 +174,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
           </ul>
         )}
       </Card>
+      </div>
     </main>
   );
 }

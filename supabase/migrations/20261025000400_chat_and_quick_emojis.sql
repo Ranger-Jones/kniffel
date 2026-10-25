@@ -12,6 +12,26 @@ alter table public.game_messages enable row level security;
 create policy "Chat lesbar für Mitspieler" on public.game_messages for select to authenticated
   using (public.is_game_member(game_id));
 
+-- Höchstens eine Nachricht pro Sekunde und Spieler – in der Datenbank erzwungen, damit auch
+-- gleichzeitige Anfragen das Limit nicht umgehen (Sperre pro Spieler und Spiel).
+create function public.game_messages_rate_limit() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform pg_advisory_xact_lock(hashtext(new.game_id::text || ':' || new.user_id::text));
+  if exists (
+    select 1 from public.game_messages m
+    where m.game_id = new.game_id and m.user_id = new.user_id
+      and m.created_at > clock_timestamp() - interval '1 second'
+  ) then
+    raise exception 'chat_rate_limit';
+  end if;
+  new.created_at := clock_timestamp();
+  return new;
+end $$;
+
+create trigger game_messages_rate_limit before insert on public.game_messages
+  for each row execute function public.game_messages_rate_limit();
+
 alter publication supabase_realtime add table public.game_messages;
 
 -- Persönliche Emoji-Schnellwahl (null = Standard).
