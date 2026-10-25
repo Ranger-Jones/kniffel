@@ -6,8 +6,8 @@ import { getSettings, turnDeadline, type GameState } from '@/lib/kniffel/engine'
 
 /** Puffer nach Ablauf, damit Uhrabweichungen zwischen Gerät und Server keine Fehlmeldung auslösen. */
 const REPORT_DELAY_MS = 1500;
-const RETRY_MS = 2000;
-const MAX_ATTEMPTS = 5;
+/** Wiederholung: anfangs alle 2 s, später alle 10 s – nie aufgeben (z. B. bei vorgehender Geräteuhr). */
+const retryDelay = (attempts: number) => (attempts < 5 ? 2000 : 10_000);
 
 interface Props { state: GameState; dispatch: UseGame['dispatch']; canReport: boolean }
 
@@ -29,10 +29,12 @@ export function TurnTimer({ state, dispatch, canReport }: Props) {
     const r = reported.current;
     if (r.key !== key) reported.current = { key, attempts: 0, last: 0 };
     const cur = reported.current;
-    if (cur.attempts >= MAX_ATTEMPTS || now - cur.last < RETRY_MS) return;
+    if (cur.attempts > 0 && now - cur.last < retryDelay(cur.attempts)) return;
     cur.attempts += 1;
     cur.last = now;
-    void dispatch({ type: 'timeout' }, { turn: true, silent: true });
+    dispatch({ type: 'timeout' }, { turn: true, silent: true }).catch(() => {
+      // Netzwerkfehler: beim nächsten Tick erneut versuchen.
+    });
   }, [now, deadline, canReport, key, dispatch]);
 
   if (deadline === null) return null;

@@ -9,6 +9,8 @@ export interface ChatMessage { id: string; user_id: string; body: string; create
 export function useChat(gameId: string, enabled: boolean) {
   const supabase = useMemo(() => createBrowserSupabase(), []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  /** true, sobald der Verlauf geladen ist – ältere Nachrichten gelten dann als gelesen. */
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -29,6 +31,7 @@ export function useChat(gameId: string, enabled: boolean) {
             const merged = new Map([...data.reverse(), ...list].map((m) => [m.id, m]));
             return [...merged.values()].sort((x, y) => x.created_at.localeCompare(y.created_at));
           });
+          if (!cancelled) setLoaded(true);
         });
     })();
     return () => {
@@ -38,12 +41,17 @@ export function useChat(gameId: string, enabled: boolean) {
   }, [enabled, gameId, supabase]);
 
   const send = useCallback(async (body: string) => {
-    const res = await sendChatAction(gameId, body);
-    if (!res.ok) toast.error(res.error);
-    return res.ok;
+    try {
+      const res = await sendChatAction(gameId, body);
+      if (!res.ok) toast.error(res.error);
+      return res.ok;
+    } catch {
+      toast.error('Nachricht konnte nicht gesendet werden. Bitte nochmal versuchen.');
+      return false;
+    }
   }, [gameId]);
 
-  return { enabled, messages, send };
+  return { enabled, loaded, messages, send };
 }
 
 export type UseChat = ReturnType<typeof useChat>;

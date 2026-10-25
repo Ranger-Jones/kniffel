@@ -14,6 +14,7 @@ import { useGame, type GameSnapshot } from '@/hooks/use-game';
 import { seatColor } from '@/lib/player-colors';
 import { fireConfetti } from '@/lib/confetti';
 import { getSettings, type GameState } from '@/lib/kniffel/engine';
+import { CATEGORY_LABELS } from '@/lib/kniffel/types';
 import type { ProfileLite } from '@/server/social-service';
 
 interface Props {
@@ -50,6 +51,11 @@ export function GameClient({ initial, initialProfiles, me, friends, quickEmojis 
     const prev = prevState.current;
     prevState.current = game?.state ?? null;
     if (!prev || !game) return;
+    const t = game.state.lastTimeout;
+    if (t && t.at !== prev.lastTimeout?.at) {
+      const who = t.playerId === me ? 'Deine' : `${g.profiles[t.playerId]?.username ?? '…'}s`;
+      toast(`⏱ ${who} Zeit ist abgelaufen – ${CATEGORY_LABELS[t.category]}: ${t.points} Punkte`);
+    }
     for (const p of game.state.players) {
       if (prev.scores[p.id]?.kniffel === null && game.state.scores[p.id]?.kniffel === 50) {
         fireConfetti('kniffel');

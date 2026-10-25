@@ -26,6 +26,8 @@ export interface GameState {
   settings?: GameSettings;
   /** Beginn des aktuellen Zugs (ISO) – Grundlage für das Zeitlimit. */
   turnStartedAt?: string | null;
+  /** Zuletzt wegen Zeitablauf automatisch eingetragenes Feld – für den Hinweis an alle. */
+  lastTimeout?: { playerId: string; category: Category; points: number; at: string } | null;
 }
 export type GameAction =
   | { type: 'join' }
@@ -247,8 +249,10 @@ export function applyAction(
       const dice = state.rollsLeft === ROLLS_PER_TURN ? state.dice.map(() => rollDie()) : (state.dice as number[]);
       const sheet = state.scores[targetId];
       const category = bestCategory(sheet, dice as number[]);
-      const scores = { ...state.scores, [targetId]: { ...sheet, [category]: scoreCategory(category, dice as number[]) } };
-      return ok(advanceTurn({ ...state, dice, scores }, now));
+      const points = scoreCategory(category, dice as number[]);
+      const scores = { ...state.scores, [targetId]: { ...sheet, [category]: points } };
+      const lastTimeout = { playerId: targetId, category, points, at: new Date(now).toISOString() };
+      return ok(advanceTurn({ ...state, dice, scores, lastTimeout }, now));
     }
   }
 }

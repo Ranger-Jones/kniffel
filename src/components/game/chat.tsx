@@ -27,8 +27,11 @@ export function ChatBox({ chat, profiles, me, seatColors, autoFocus }: BoxProps)
     const body = text.trim();
     if (!body || sending) return;
     setSending(true);
-    if (await chat.send(body)) setText('');
-    setSending(false);
+    try {
+      if (await chat.send(body)) setText('');
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -71,12 +74,16 @@ export function ChatBox({ chat, profiles, me, seatColors, autoFocus }: BoxProps)
   );
 }
 
-/** Zählt Nachrichten anderer, die eingegangen sind, während der Chat nicht sichtbar war. */
+/**
+ * Zählt Nachrichten anderer, die live eingegangen sind, während der Chat nicht sichtbar war.
+ * Der beim Laden geholte Verlauf gilt als gelesen (sonst zählt jedes Neuladen alles erneut).
+ */
 function useUnread(chat: UseChat, me: string, visible: boolean) {
   const others = chat.messages.filter((m) => m.user_id !== me).length;
-  const [seen, setSeen] = useState(others);
-  if (visible && seen !== others) setSeen(others);
-  return Math.max(0, others - seen);
+  const [seen, setSeen] = useState<number | null>(null);
+  if (chat.loaded && seen === null) setSeen(others);
+  if (visible && seen !== null && seen !== others) setSeen(others);
+  return seen === null ? 0 : Math.max(0, others - seen);
 }
 
 type CardProps = BoxProps;

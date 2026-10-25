@@ -266,6 +266,10 @@ describe('Einstellungen & Zeitlimit', () => {
     expect(currentPlayerId(s)).toBe(B);
     expect(s.turnStartedAt).toBe(new Date(T0 + 30_000).toISOString());
   });
+  test('timeout merkt sich, was automatisch eingetragen wurde', () => {
+    const s = at(timed(30, A, B), B, { type: 'timeout' }, T0 + 30_000, six);
+    expect(s.lastTimeout).toEqual({ playerId: A, category: 'kniffel', points: 50, at: new Date(T0 + 30_000).toISOString() });
+  });
   test('timeout nach Wurf: aktuelle Würfel, bestes Feld', () => {
     let s = timed(60, A, B);
     s = at(s, A, { type: 'roll' }, T0 + 1000, dieSeq(1, 2, 3, 4, 5));

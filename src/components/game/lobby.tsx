@@ -150,7 +150,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends, chatSlot 
         <GameSettingsPanel
           settings={getSettings(state)}
           isHost={isHost}
-          onChange={(patch) => dispatch({ type: 'updateSettings', settings: patch }, { versioned: true })}
+          onChange={(patch) => dispatch({ type: 'updateSettings', settings: patch })}
         />
       </Card>
       {chatSlot}

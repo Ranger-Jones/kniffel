@@ -35,8 +35,14 @@ export function EmojiBar({ quick, onQuickChange, onSend }: Props) {
 
   async function save() {
     setSaving(true);
-    const res = await setQuickEmojisAction(picked);
-    setSaving(false);
+    let res: Awaited<ReturnType<typeof setQuickEmojisAction>>;
+    try {
+      res = await setQuickEmojisAction(picked);
+    } catch {
+      return toast.error('Speichern hat nicht geklappt. Bitte nochmal versuchen.');
+    } finally {
+      setSaving(false);
+    }
     if (!res.ok) return toast.error(res.error);
     onQuickChange(picked);
     toast.success('Schnellwahl gespeichert');
