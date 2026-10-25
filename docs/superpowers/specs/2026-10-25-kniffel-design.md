@@ -51,7 +51,7 @@ Ein Online-Kniffel-Spiel im Browser, das der Nutzer mit seinen Freunden spielt. 
   1. Nutzer aus der Session ermitteln (`supabase.auth.getUser()`).
   2. Aktuellen Spielzustand laden.
   3. Aktion über die reine Spiel-Engine anwenden (prüft: ist dran, Zug erlaubt).
-  4. Ergebnis über die Postgres-Funktion `commit_game` atomar speichern, mit optimistischer Sperre (`expected_version`). Bei Versionskonflikt: neu laden und einmal erneut versuchen, sonst Fehler „Bitte nochmal versuchen“.
+  4. Ergebnis über die Postgres-Funktion `commit_game` atomar speichern, mit optimistischer Sperre (`expected_version`). Nicht-idempotente Aktionen (Würfeln, Eintragen, Überspringen, Entfernen, Starten) schickt der Client mit seiner bekannten Version; weicht sie ab, wird die Aktion verworfen (schützt vor Doppelklicks). Idempotente Aktionen (Beitreten, Verlassen, Halten) werden bei Konflikt einmal wiederholt.
 - Würfeln mit `crypto.randomInt(1, 7)` auf dem Server.
 - Der Service-Role-Key existiert nur serverseitig (Env-Variable ohne `NEXT_PUBLIC_`).
 
@@ -59,7 +59,7 @@ Ein Online-Kniffel-Spiel im Browser, das der Nutzer mit seinen Freunden spielt. 
 
 1. **`src/lib/kniffel/`** – reine Logik, keine Abhängigkeiten
    - `scoring.ts`: Punkte pro Feld für 5 Würfel, Oben-Summe, Bonus, Gesamt.
-   - `engine.ts`: Spielzustand als Datentyp + `applyAction(state, actorId, action, rng)` → neuer Zustand oder Fehler. Aktionen: `join`, `leave`, `start`, `roll`, `toggleHold`, `score`, `skipTurn`, `removePlayer`. Berechnet Spielende und Platzierungen.
+   - `engine.ts`: Spielzustand als Datentyp + `applyAction(state, actorId, action, rng)` → neuer Zustand oder Fehler. Aktionen: `join`, `leave`, `start`, `roll`, `setHold` (idempotent: Index + gehalten ja/nein), `score`, `skipTurn`, `removePlayer`. Berechnet Spielende und Platzierungen.
    - Komplett durch Vitest abgedeckt.
 2. **`src/lib/supabase/`** – Clients (Browser, Server mit Cookies, Service-Role), generierte DB-Typen.
 3. **`src/server/`** – Server Actions: Auth, Profil/Avatar, Freunde, Einladungen, Spiel (erstellen, beitreten, Aktionen, Revanche). Dünne Schicht: laden → Engine → `commit_game`.
@@ -78,7 +78,7 @@ games           id uuid PK, code text unique (6 Zeichen, ohne 0/O/1/I),
                 host_id → profiles, status ('lobby'|'playing'|'finished'),
                 state jsonb (siehe Engine), version int, rematch_game_id → games null,
                 created_at, started_at, finished_at
-game_players    game_id → games, user_id → profiles, seat int, left boolean,
+game_players    game_id → games, user_id → profiles, seat int, left_game boolean,
                 scores jsonb, total int null, place int null, PK(game_id,user_id)
 game_invites    id PK, game_id → games, from_id, to_id → profiles,
                 status ('pending'|'accepted'|'declined'), created_at
@@ -86,14 +86,14 @@ game_invites    id PK, game_id → games, from_id, to_id → profiles,
 
 **`games.state`** (Quelle der Wahrheit während des Spiels):
 ```
-{ players: [{ id, left }], currentSeat, dice: [5 Zahlen|null], held: [5 bool],
-  rollsLeft (0–3), round (1–13), scores: { [userId]: { [feld]: number|null } } }
+{ status, hostId, players: [{ id, left }], currentSeat, dice: [5 Zahlen|null], held: [5 bool],
+  rollsLeft (0–3), scores: { [userId]: { [feld]: number|null } } }
 ```
 
 **`commit_game(p_game_id, p_expected_version, p_status, p_host_id, p_state, p_players jsonb)`** – `security definer`, nur für `service_role` ausführbar. Aktualisiert `games` nur wenn `version = p_expected_version` (sonst Fehler), erhöht `version`, setzt `started_at`/`finished_at` beim Statuswechsel und upsertet `game_players` (seat, left, scores, total, place) in derselben Transaktion.
 
 **Views**
-- `player_stats`: pro Profil aus beendeten Spielen (`left = false`): Spiele, Siege (`place = 1`), Bestwert, Durchschnitt (gerundet), Anzahl Kniffel (Feld `kniffel = 50`).
+- `player_stats`: pro Profil aus beendeten Spielen (`left_game = false`): Spiele, Siege (`place = 1`), Bestwert, Durchschnitt (gerundet), Anzahl Kniffel (Feld `kniffel = 50`).
 - `leaderboard`: `player_stats` mit ≥ 1 Spiel, sortiert nach Siegen, dann Bestwert.
 
 **RLS (Kurzfassung)**
