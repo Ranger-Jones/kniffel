@@ -58,7 +58,7 @@ async function commit(admin: AdminClient, gameId: string, expectedVersion: numbe
   return data;
 }
 
-async function insertGame(admin: AdminClient, state: GameState): Promise<ServiceResult<{ id: string; code: string }>> {
+export async function insertGame(admin: AdminClient, state: GameState): Promise<ServiceResult<{ id: string; code: string }>> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateCode();
     const { data, error } = await admin.from('games')
@@ -68,7 +68,14 @@ async function insertGame(admin: AdminClient, state: GameState): Promise<Service
       if (error.code === '23505') continue;
       throw error;
     }
-    await commit(admin, data.id, 0, state);
+    try {
+      const version = await commit(admin, data.id, 0, state);
+      if (version === 'conflict') throw new Error('Neues Spiel wurde gleichzeitig verändert.');
+    } catch (err) {
+      // Kein halb angelegtes Spiel ohne Spieler zurücklassen.
+      await admin.from('games').delete().eq('id', data.id);
+      throw err;
+    }
     return ok({ id: data.id, code });
   }
   return fail('Konnte keinen Raum-Code erzeugen. Bitte nochmal versuchen.');
@@ -122,10 +129,7 @@ export async function performAction(
     if (!res.ok) return fail(res.error);
     if (res.state === game.state) return ok({ version: game.version, state: game.state });
 
-    if (res.state.players.length === 0) {
-      await admin.from('games').delete().eq('id', gameId).eq('version', game.version);
-      return ok({ version: game.version + 1, state: res.state });
-    }
+    // Ohne Spieler löscht commit_game das Spiel (atomar, mit Versionsprüfung).
     const version = await commit(admin, gameId, game.version, res.state);
     if (version !== 'conflict') {
       if (action.type === 'removePlayer') await notifyKicked(admin, gameId, action.playerId);

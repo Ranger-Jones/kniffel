@@ -11,24 +11,32 @@ interface Props {
   color: string;
   activeName: string;
   onRoll: () => Promise<unknown>;
-  onHold: (index: number, held: boolean) => void;
+  onHold: (index: number, held: boolean) => Promise<unknown>;
 }
 
 export function DiceTray({ state, isMyTurn, color, activeName, onRoll, onHold }: Props) {
   const [pending, setPending] = useState(false);
+  // Laufende eigene Halte-Anfragen: solange welche unterwegs sind, gilt die lokale Auswahl,
+  // damit Zwischenstände vom Server die Würfel nicht flackern lassen.
+  const [holdsInFlight, setHoldsInFlight] = useState(0);
   // Abgeleiteter Zustand aus vorherigen Props (React-Muster ohne Effect):
   // neuer Wurf im selben Zug → nicht gehaltene Würfel drehen; Server-Halten übernehmen.
   const [track, setTrack] = useState({
-    seat: state.currentSeat, rollsLeft: state.rollsLeft, heldSrc: state.held, held: state.held, spins: [0, 0, 0, 0, 0],
+    seat: state.currentSeat, rollsLeft: state.rollsLeft, heldSrc: state.held, held: state.held,
+    spins: [0, 0, 0, 0, 0], stale: false,
   });
-  if (track.seat !== state.currentSeat || track.rollsLeft !== state.rollsLeft || track.heldSrc !== state.held) {
+  const serverChanged = track.seat !== state.currentSeat || track.rollsLeft !== state.rollsLeft || track.heldSrc !== state.held;
+  if (serverChanged || (track.stale && holdsInFlight === 0)) {
     const rolled = state.currentSeat === track.seat && state.rollsLeft < track.rollsLeft;
+    const newTurn = state.currentSeat !== track.seat || state.rollsLeft !== track.rollsLeft;
+    const keepLocal = holdsInFlight > 0 && !newTurn;
     setTrack({
       seat: state.currentSeat,
       rollsLeft: state.rollsLeft,
       heldSrc: state.held,
-      held: state.held,
+      held: keepLocal ? track.held : state.held,
       spins: rolled ? track.spins.map((n, i) => (state.held[i] ? n : n + 1)) : track.spins,
+      stale: keepLocal,
     });
   }
   const { held, spins } = track;
@@ -43,10 +51,15 @@ export function DiceTray({ state, isMyTurn, color, activeName, onRoll, onHold }:
     setPending(false);
   }
 
-  function toggle(i: number) {
+  async function toggle(i: number) {
     const next = held.map((h, j) => (j === i ? !h : h));
     setTrack((t) => ({ ...t, held: next }));
-    onHold(i, next[i]);
+    setHoldsInFlight((n) => n + 1);
+    try {
+      await onHold(i, next[i]);
+    } finally {
+      setHoldsInFlight((n) => n - 1);
+    }
   }
 
   return (

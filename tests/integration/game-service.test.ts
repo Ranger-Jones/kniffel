@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { CATEGORIES } from '@/lib/kniffel/types';
-import { createGame, joinGame, loadGame, performAction, requestRematch } from '@/server/game-service';
+import { randomUUID } from 'node:crypto';
+import { createRematchState } from '@/lib/kniffel/engine';
+import { createGame, insertGame, joinGame, loadGame, performAction, requestRematch } from '@/server/game-service';
 import { admin, createTestUser } from './helpers';
 
 async function setup(n: number) {
@@ -20,6 +22,13 @@ describe('game-service', () => {
     const { gameId, users } = await setup(2);
     const { data } = await admin.from('game_players').select('user_id, seat').eq('game_id', gameId).order('seat');
     expect(data?.map((r) => r.user_id)).toEqual(users.map((u) => u.id));
+  });
+  test('scheitert das erste Speichern, bleibt kein leeres Spiel zurück', async () => {
+    const host = await createTestUser('orph');
+    const broken = createRematchState(host.id, [host.id, randomUUID()]); // zweiter Spieler existiert nicht
+    await expect(insertGame(admin, broken)).rejects.toBeTruthy();
+    const { data } = await admin.from('games').select('id').eq('host_id', host.id);
+    expect(data).toHaveLength(0);
   });
   test('unbekannter Code', async () => {
     const u = await createTestUser('nocode');

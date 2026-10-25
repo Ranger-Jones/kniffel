@@ -88,6 +88,21 @@ describe('Profil', () => {
     expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/%2e%2e/other/a.webp`)).ok).toBe(false);
     expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/a.webp?x=1`)).ok).toBe(false);
   });
+  test('neues Profilbild löscht die alten Dateien im eigenen Ordner', async () => {
+    const a = await createTestUser('avd');
+    const file = new Blob([new Uint8Array([0x52, 0x49, 0x46, 0x46])], { type: 'image/webp' });
+    await a.client.storage.from('avatars').upload(`${a.id}/avatar-1.webp`, file);
+    await a.client.storage.from('avatars').upload(`${a.id}/avatar-2.webp`, file);
+    const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/`;
+    expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/avatar-2.webp`)).ok).toBe(true);
+    const { data } = await admin.storage.from('avatars').list(a.id);
+    expect(data?.map((f) => f.name)).toEqual(['avatar-2.webp']);
+  });
+  test('Statistik mit Platzhalterzeichen im Namen liefert nichts statt Fehler', async () => {
+    await createTestUser('pct');
+    expect(await getStatsByUsername(admin, '%')).toBeNull();
+    expect(await getStatsByUsername(admin, 'pct_%')).toBeNull();
+  });
   test('Statistik für neuen Spieler ist 0', async () => {
     const a = await createTestUser('sta');
     expect(await getStatsByUsername(admin, a.username)).toMatchObject({ games_played: 0, wins: 0 });

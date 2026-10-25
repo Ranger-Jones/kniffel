@@ -4,6 +4,7 @@ import { StatsGrid } from '@/components/stats-grid';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cx } from '@/lib/cx';
+import { parseUsernameParam } from '@/lib/username';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/server';
 import { getHistory, getStatsByUsername } from '@/server/profile-service';
@@ -14,12 +15,13 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 const dateFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Berlin' });
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
-  return { title: decodeURIComponent((await params).username) };
+  return { title: parseUsernameParam((await params).username) ?? 'Profil' };
 }
 
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  const username = decodeURIComponent((await params).username);
+  const username = parseUsernameParam((await params).username);
   const me = await requireUser();
+  if (!username) notFound();
   const admin = createAdminClient();
   const stats = await getStatsByUsername(admin, username);
   if (!stats) notFound();

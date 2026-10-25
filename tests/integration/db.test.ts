@@ -54,6 +54,17 @@ describe('games RLS & commit_game', () => {
     const rpc = await a.client.rpc('commit_game', { p_game_id: id, p_expected_version: 1, p_state: {} as never, p_players: [] as never });
     expect(rpc.error).not.toBeNull();
   });
+  test('commit_game ohne Spieler löscht das Spiel – aber nur bei passender Version', async () => {
+    const a = await createTestUser('del');
+    const id = await insertGame(a.id, code());
+    const empty = { ...createGameState(a.id), players: [], scores: {} };
+    const stale = await admin.rpc('commit_game', { p_game_id: id, p_expected_version: 0, p_state: empty as never, p_players: [] as never });
+    expect(stale.error?.message).toMatch(/version_conflict/);
+    expect((await admin.from('games').select('id').eq('id', id)).data).toHaveLength(1);
+    const res = await admin.rpc('commit_game', { p_game_id: id, p_expected_version: 1, p_state: empty as never, p_players: [] as never });
+    expect(res.error).toBeNull();
+    expect((await admin.from('games').select('id').eq('id', id)).data).toHaveLength(0);
+  });
   test('commit_game lehnt falsche Version ab', async () => {
     const a = await createTestUser('ver');
     const id = await insertGame(a.id, code());

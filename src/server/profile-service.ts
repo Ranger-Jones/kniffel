@@ -2,7 +2,9 @@ import type { AdminClient } from '@/lib/supabase/admin';
 import { fail, ok, type ServiceResult } from './result';
 import type { ProfileLite } from './social-service';
 
-export const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+import { USERNAME_RE } from '@/lib/username';
+
+export { USERNAME_RE };
 
 export interface PlayerStats {
   user_id: string; username: string; avatar_url: string | null; games_played: number;
@@ -20,6 +22,7 @@ export async function isUsernameTaken(admin: AdminClient, username: string): Pro
 }
 
 export async function getStatsByUsername(admin: AdminClient, username: string): Promise<PlayerStats | null> {
+  if (!USERNAME_RE.test(username)) return null;
   const { data, error } = await admin.from('player_stats').select('*').ilike('username', username.replace(/_/g, '\\_')).maybeSingle();
   if (error) throw error;
   return data as PlayerStats | null;
@@ -79,10 +82,18 @@ function isOwnAvatarUrl(raw: string, userId: string): boolean {
     && url.pathname.startsWith(prefix) && /^[A-Za-z0-9._-]+$/.test(file) && !file.startsWith('.');
 }
 
+/** Alte Profilbilder im eigenen Ordner aufräumen (Speicher im Free-Tarif ist knapp). */
+async function removeOtherAvatars(admin: AdminClient, userId: string, keep: string) {
+  const { data } = await admin.storage.from('avatars').list(userId, { limit: 100 });
+  const old = (data ?? []).filter((f) => f.name !== keep).map((f) => `${userId}/${f.name}`);
+  if (old.length > 0) await admin.storage.from('avatars').remove(old);
+}
+
 export async function setAvatarUrl(admin: AdminClient, userId: string, url: string): Promise<ServiceResult> {
   if (!isOwnAvatarUrl(url, userId)) return fail('Ungültige Bild-URL.');
   const { error } = await admin.from('profiles').update({ avatar_url: url }).eq('id', userId);
   if (error) throw error;
+  await removeOtherAvatars(admin, userId, url.split('/').pop()!);
   return ok(undefined);
 }
 

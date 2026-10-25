@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Modal } from '@/components/ui/modal';
 import type { UseGame } from '@/hooks/use-game';
 import { MAX_PLAYERS } from '@/lib/kniffel/engine';
 import { seatColor } from '@/lib/player-colors';
@@ -22,6 +23,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
   const router = useRouter();
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
   const { state } = game;
   const isHost = state.hostId === me;
   const inGame = new Set(state.players.map((p) => p.id));
@@ -103,7 +105,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
                   <button
                     type="button"
                     aria-label={`${profile?.username ?? 'Spieler'} entfernen`}
-                    onClick={() => dispatch({ type: 'removePlayer', playerId: p.id }, { versioned: true })}
+                    onClick={() => setRemoving(p.id)}
                     className="absolute right-2 top-2 rounded-full px-1.5 text-lg leading-none text-ink-soft hover:bg-paper hover:text-tomato"
                   >
                     ×
@@ -123,6 +125,23 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
           <Button variant="ghost" onClick={leave}>Lobby verlassen</Button>
         </div>
       </Card>
+
+      <Modal open={removing !== null} onClose={() => setRemoving(null)} title={`${profiles[removing ?? '']?.username ?? 'Spieler'} entfernen?`}>
+        <p className="text-ink-soft">Wer entfernt wird, kann diesem Raum nicht wieder beitreten.</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setRemoving(null)}>Abbrechen</Button>
+          <Button
+            variant="danger"
+            onClick={async () => {
+              const id = removing;
+              setRemoving(null);
+              if (id) await dispatch({ type: 'removePlayer', playerId: id }, { versioned: true });
+            }}
+          >
+            Entfernen
+          </Button>
+        </div>
+      </Modal>
 
       <Card className="flex flex-col gap-4 p-6">
         <h2 className="text-2xl font-extrabold">Freunde einladen</h2>
