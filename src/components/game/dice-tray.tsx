@@ -66,10 +66,10 @@ export function DiceTray({ timer, state, isMyTurn, color, activeName, onRoll, on
   return (
     <section
       aria-label="Würfel"
-      className="rounded-[1.75rem] bg-tray p-4 text-white shadow-[0_6px_0_var(--color-tray-deep)] [--die:3.25rem] sm:[--die:3.75rem] sm:p-5"
+      className="rounded-[1.5rem] bg-tray p-3 text-white shadow-[0_6px_0_var(--color-tray-deep)] [--die:2.9rem] min-[380px]:[--die:3.1rem] sm:rounded-[1.75rem] sm:p-5 sm:[--die:3.75rem]"
     >
       {timer}
-      <div className="flex min-h-[calc(var(--die)+1.5rem)] items-center justify-between gap-2 pt-3">
+      <div className="flex min-h-[calc(var(--die)+1rem)] items-center justify-between gap-2 pt-2 sm:pt-3">
         {state.dice.map((value, i) => (
           <Die
             key={i}
@@ -83,13 +83,13 @@ export function DiceTray({ timer, state, isMyTurn, color, activeName, onRoll, on
           />
         ))}
       </div>
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-2 flex items-center justify-between gap-3 sm:mt-4">
         {isMyTurn ? (
-          <p className="text-sm text-white/70">
+          <p className="text-xs text-white/70 sm:text-sm">
             {!hasRolled ? 'Du bist dran. Würfel los!' : state.rollsLeft > 0 ? 'Tipp Würfel an, um sie zu halten.' : 'Trag jetzt ein Feld ein.'}
           </p>
         ) : (
-          <p className="text-sm text-white/70">{activeName} würfelt …</p>
+          <p className="min-w-0 truncate text-xs text-white/70 sm:text-sm">{activeName} würfelt …</p>
         )}
         {isMyTurn && (
           <Button
@@ -97,7 +97,7 @@ export function DiceTray({ timer, state, isMyTurn, color, activeName, onRoll, on
             size="lg"
             onClick={roll}
             disabled={pending || state.rollsLeft === 0}
-            className="shrink-0"
+            className="h-12 shrink-0 px-5 sm:h-14 sm:px-7"
             aria-label={`Würfeln, noch ${state.rollsLeft} ${state.rollsLeft === 1 ? 'Wurf' : 'Würfe'}`}
           >
             Würfeln

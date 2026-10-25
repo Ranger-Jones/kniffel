@@ -34,7 +34,7 @@ export function GameBoard({ game, profiles, online, offlineSince, dispatch, me, 
   }
 
   return (
-    <main className="mx-auto grid w-full content-start max-w-6xl flex-1 gap-4 px-4 pb-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6">
+    <main className="mx-auto grid w-full content-start max-w-6xl flex-1 grid-cols-[minmax(0,1fr)] gap-4 px-4 pb-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-6">
       <div className="flex flex-col gap-4 lg:col-start-2 lg:row-start-1">
         <PlayerBar state={state} profiles={profiles} online={online} me={me} />
         <OfflineControls state={state} me={me} name={activeName} online={online} offlineSince={offlineSince} dispatch={dispatch} />

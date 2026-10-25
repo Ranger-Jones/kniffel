@@ -89,7 +89,7 @@ export function FriendsClient({ me, lists }: { me: string; lists: FriendLists })
   const friendsSorted = [...lists.friends].sort((a, b) => Number(online.has(b.profile.id)) - Number(online.has(a.profile.id)));
 
   return (
-    <main className="mx-auto grid w-full content-start max-w-5xl flex-1 gap-5 px-4 pb-12 lg:grid-cols-2 lg:items-start">
+    <main className="mx-auto grid w-full content-start max-w-5xl flex-1 grid-cols-[minmax(0,1fr)] gap-5 px-4 pb-12 lg:grid-cols-2 lg:items-start">
       <div className="flex flex-col gap-5">
         <h1 className="text-4xl font-extrabold">Freunde</h1>
         <Card className="flex flex-col gap-3">

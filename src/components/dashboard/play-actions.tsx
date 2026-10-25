@@ -22,9 +22,9 @@ export function PlayActions() {
           <input
             name="code" required maxLength={6} size={6} autoCapitalize="characters" autoComplete="off" spellCheck={false}
             placeholder="ABC234" aria-label="Raum-Code"
-            className="h-14 min-w-0 flex-1 rounded-2xl bg-mist/60 px-4 font-display text-2xl font-extrabold uppercase tracking-[0.2em] ring-2 ring-inset ring-line outline-none placeholder:text-ink-soft/40 focus:bg-paper focus:ring-sky"
+            className="h-14 min-w-0 flex-1 rounded-2xl bg-mist/60 px-4 font-display text-xl font-extrabold uppercase tracking-[0.12em] sm:text-2xl sm:tracking-[0.2em] ring-2 ring-inset ring-line outline-none placeholder:text-ink-soft/40 focus:bg-paper focus:ring-sky"
           />
-          <Button type="submit" size="lg" variant="secondary" disabled={pending}>Beitreten</Button>
+          <Button type="submit" size="lg" variant="secondary" disabled={pending} className="shrink-0 px-4 sm:px-7">Beitreten</Button>
         </form>
         {state.error && <p role="alert" className="text-sm font-semibold text-tomato">{state.error}</p>}
       </Card>

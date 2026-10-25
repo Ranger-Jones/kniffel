@@ -8,6 +8,7 @@ import { parseUsernameParam } from '@/lib/username';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireUser } from '@/lib/supabase/server';
 import { getHistory, getStatsByUsername } from '@/server/profile-service';
+import { signOut } from '@/server/auth-actions';
 import { AvatarUpload } from './avatar-upload';
 import { RenameForm } from './rename-form';
 
@@ -34,7 +35,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
         {isMe ? <AvatarUpload me={me.id} profile={stats} /> : <Avatar profile={stats} size="xl" />}
         <div className="flex flex-col items-start gap-1">
           <h1 className="break-all text-4xl font-extrabold sm:text-5xl">{stats.username}</h1>
-          {isMe && <RenameForm current={stats.username} />}
+          {isMe && (
+            <div className="flex flex-wrap items-center gap-1">
+              <RenameForm current={stats.username} />
+              <form action={signOut}>
+                <button type="submit" className="min-h-9 rounded-xl px-3 text-sm font-bold text-ink-soft hover:bg-paper hover:text-tomato">Abmelden</button>
+              </form>
+            </div>
+          )}
         </div>
       </section>
 
