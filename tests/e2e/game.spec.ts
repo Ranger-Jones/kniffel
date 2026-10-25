@@ -97,8 +97,10 @@ test('zwei Freunde spielen ein komplettes Spiel', async ({ browser }) => {
       await current.waitForTimeout(500);
       const before = await Promise.all([0, 1, 2, 3, 4].map((i) => current.getByTestId(`die-${i}`).getAttribute('data-value')));
       await current.reload();
-      for (let i = 0; i < 5; i++) await expect(current.getByTestId(`die-${i}`)).toHaveAttribute('data-value', before[i]!);
-      await expect(current.getByTestId('die-1')).toHaveAttribute('aria-pressed', 'true');
+      // Beim Streamen liegt der Inhalt kurz zusätzlich im versteckten React-Zwischenspeicher – nur sichtbare Würfel prüfen.
+      const die = (i: number) => current.getByTestId(`die-${i}`).filter({ visible: true });
+      for (let i = 0; i < 5; i++) await expect(die(i)).toHaveAttribute('data-value', before[i]!);
+      await expect(die(1)).toHaveAttribute('aria-pressed', 'true');
     }
     await scoreFirstFreeField(current);
     if (turn < 25) await expect(other.getByTestId('turn-indicator')).toHaveText(/Du bist dran/);
@@ -117,4 +119,50 @@ test('zwei Freunde spielen ein komplettes Spiel', async ({ browser }) => {
   // Statistik
   await a.goto(`/profil/${nameA}`);
   await expect(a.getByTestId('stat-games')).toHaveText('1');
+});
+
+test('Chat, Emoji-Auswahl und Zeitlimit', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const a = await (await browser.newContext()).newPage();
+  const b = await (await browser.newContext()).newPage();
+  const nameA = `cha_${run}`;
+  const nameB = `chb_${run}`;
+  await register(a, nameA);
+  await register(b, nameB);
+
+  await a.getByRole('button', { name: 'Neues Spiel' }).click();
+  await expect(a).toHaveURL(/\/spiel\/[A-Z0-9]{6}$/);
+  await b.goto(a.url());
+  await expect(a.getByRole('listitem').filter({ hasText: nameB }).filter({ hasText: 'Spieler' })).toBeVisible();
+
+  // Einstellungen: 30 s Zeitlimit, B sieht es
+  await a.getByRole('radio', { name: '30 s' }).click();
+  await expect(b.getByText('30 s')).toBeVisible();
+
+  // Chat in der Lobby
+  await a.getByLabel('Nachricht schreiben').fill('Hallo aus der Lobby');
+  await a.getByRole('button', { name: 'Senden', exact: true }).click();
+  await expect(b.getByText('Hallo aus der Lobby')).toBeVisible();
+
+  await a.getByRole('button', { name: 'Spiel starten' }).click();
+  await expect(a.getByTestId('turn-indicator')).toHaveText(/Du bist dran/);
+  await expect(a.getByRole('timer')).toBeVisible();
+
+  // Emoji aus der großen Auswahl kommt beim anderen an
+  await a.getByRole('button', { name: 'Mehr Reaktionen' }).click();
+  await a.getByRole('dialog').getByRole('button', { name: 'Reaktion 🐐 senden' }).click();
+  await expect(b.locator('.pointer-events-none.fixed').getByText('🐐')).toBeVisible();
+
+  // A spielt normal, B lässt die Zeit ablaufen → automatisch eingetragen, A wieder dran
+  await a.getByTestId('roll-button').click();
+  await scoreFirstFreeField(a);
+  await expect(b.getByTestId('turn-indicator')).toHaveText(/Du bist dran/);
+  await expect(a.getByTestId('turn-indicator')).toHaveText(/Du bist dran/, { timeout: 45_000 });
+  const [, idB] = await a.locator('[data-testid^="total-"]').evaluateAll(
+    (els) => els.map((e) => e.getAttribute('data-testid')!.slice('total-'.length)),
+  );
+  const filledB = await a.locator(`[data-testid^="score-cell-${idB}-"]`).evaluateAll(
+    (cells) => cells.filter((c) => c.textContent!.trim() !== '').length,
+  );
+  expect(filledB).toBe(1);
 });
