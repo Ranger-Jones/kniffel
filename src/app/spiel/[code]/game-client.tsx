@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { ConnectionBanner } from '@/components/game/connection-banner';
+import { GameBoard } from '@/components/game/game-board';
 import { Lobby } from '@/components/game/lobby';
 import { useGame, type GameSnapshot } from '@/hooks/use-game';
 import type { ProfileLite } from '@/server/social-service';
@@ -39,7 +40,9 @@ export function GameClient({ initial, initialProfiles, me, friends }: Props) {
       {game.state.status === 'lobby' && (
         <Lobby game={game} profiles={g.profiles} online={g.online} dispatch={g.dispatch} me={me} friends={friends} />
       )}
-      {game.state.status === 'playing' && <main className="px-4">Spiel läuft …</main>}
+      {game.state.status === 'playing' && (
+        <GameBoard game={game} profiles={g.profiles} online={g.online} offlineSince={g.offlineSince} dispatch={g.dispatch} me={me} />
+      )}
       {game.state.status === 'finished' && <main className="px-4">Spiel beendet!</main>}
     </>
   );
