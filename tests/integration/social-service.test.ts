@@ -59,6 +59,8 @@ describe('Einladungen', () => {
     if (!game.ok) throw new Error();
     expect(await inviteToGame(admin, a.id, game.data.id, stranger.id)).toMatchObject({ ok: false, error: 'Ihr seid nicht befreundet.' });
     expect((await inviteToGame(admin, a.id, game.data.id, b.id)).ok).toBe(true);
+    const asInvitee = await b.client.from('game_invites').select('id, games(code)').eq('to_id', b.id).single();
+    expect((asInvitee.data?.games as { code: string } | null)?.code).toBe(game.data.code);
     const invites = await listPendingInvites(admin, b.id);
     expect(invites).toHaveLength(1);
     expect(invites[0].gameCode).toBe(game.data.code);

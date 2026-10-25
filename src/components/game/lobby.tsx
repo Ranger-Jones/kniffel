@@ -51,7 +51,7 @@ export function Lobby({ game, profiles, online, dispatch, me, friends }: Props) 
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-5xl flex-1 gap-5 px-4 pb-12 lg:grid-cols-[1.4fr_1fr]">
+    <main className="mx-auto grid w-full content-start max-w-5xl flex-1 gap-5 px-4 pb-12 lg:grid-cols-[1.4fr_1fr]">
       <Card className="flex flex-col gap-6 p-6 sm:p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

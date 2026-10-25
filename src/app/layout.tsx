@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { Bricolage_Grotesque, Nunito } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { Header } from '@/components/app-shell/header';
+import { InviteListener } from '@/components/app-shell/invite-listener';
+import { OnlinePresenceProvider } from '@/components/app-shell/online-presence';
+import { getCurrentUser } from '@/lib/supabase/server';
 import './globals.css';
 
 const display = Bricolage_Grotesque({ variable: '--font-bricolage', subsets: ['latin'], weight: ['600', '700', '800'] });
@@ -14,13 +17,34 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: '#eef0ff', width: 'device-width', initialScale: 1 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  const user = await getCurrentUser();
+  const content = (
+    <>
+      <Header />
+      {children}
+    </>
+  );
   return (
     <html lang="de" className={`${display.variable} ${body.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        <Header />
-        {children}
-        <Toaster position="top-center" richColors toastOptions={{ style: { fontFamily: 'var(--font-nunito)', borderRadius: '1rem' } }} />
+        {user ? (
+          <OnlinePresenceProvider me={user.id}>
+            {content}
+            <InviteListener me={user.id} />
+          </OnlinePresenceProvider>
+        ) : content}
+        <Toaster
+          position="top-center"
+          richColors
+          toastOptions={{
+            style: { fontFamily: 'var(--font-nunito)', borderRadius: '1rem' },
+            classNames: {
+              actionButton: '!bg-sun !text-ink !font-bold !rounded-lg',
+              cancelButton: '!bg-mist !text-ink-soft !font-bold !rounded-lg',
+            },
+          }}
+        />
       </body>
     </html>
   );

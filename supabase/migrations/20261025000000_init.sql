@@ -135,13 +135,13 @@ create policy "Spiele lesbar" on public.games for select to authenticated
   using (
     status = 'finished'
     or public.is_game_member(id)
-    or exists (select 1 from public.game_invites i where i.game_id = id and i.to_id = auth.uid())
+    or exists (select 1 from public.game_invites i where i.game_id = games.id and i.to_id = auth.uid())
   );
 
 create policy "Spieler lesbar" on public.game_players for select to authenticated
   using (
     public.is_game_member(game_id)
-    or exists (select 1 from public.games g where g.id = game_id and g.status = 'finished')
+    or exists (select 1 from public.games g where g.id = game_players.game_id and g.status = 'finished')
   );
 
 -- Keine insert/update/delete-Policies: Schreiben nur über service_role.
