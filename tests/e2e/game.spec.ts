@@ -2,7 +2,15 @@ import { expect, test, type Page } from '@playwright/test';
 
 const run = Date.now().toString(36);
 
+async function unlock(page: Page) {
+  await page.goto('/zugang');
+  await page.getByLabel('Wie heißt mein Lieblings PWC Mitarbeiter?').fill('Paul');
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page).toHaveURL(/\/$/);
+}
+
 async function register(page: Page, name: string) {
+  await unlock(page);
   await page.goto('/registrieren');
   await page.getByLabel('Benutzername').fill(name);
   await page.getByLabel('E-Mail').fill(`${name}@test.local`);
@@ -16,6 +24,23 @@ async function scoreFirstFreeField(page: Page) {
   const strike = page.getByRole('button', { name: 'Streichen' });
   if (await strike.isVisible().catch(() => false)) await strike.click();
 }
+
+test('ohne richtige Antwort auf die Zugangsfrage ist nichts erreichbar', async ({ page }) => {
+  for (const path of ['/', '/login', '/registrieren', '/spiel/ABCDEF']) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/zugang/);
+  }
+  await page.goto('/spiel/ABCDEF');
+  await page.getByLabel('Wie heißt mein Lieblings PWC Mitarbeiter?').fill('Peter');
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  await expect(page.getByText('Leider falsch.')).toBeVisible();
+  await page.getByLabel('Wie heißt mein Lieblings PWC Mitarbeiter?').fill(' paul ');
+  await page.getByRole('button', { name: 'Weiter' }).click();
+  // Weiter zur ursprünglich aufgerufenen Seite (ohne Login → Login-Seite mit next).
+  await expect(page).toHaveURL(/\/login\?next=%2Fspiel%2FABCDEF/);
+  await page.goto('/registrieren');
+  await expect(page.getByRole('button', { name: 'Account erstellen' })).toBeVisible();
+});
 
 test('zwei Freunde spielen ein komplettes Spiel', async ({ browser }) => {
   const a = await (await browser.newContext()).newPage();

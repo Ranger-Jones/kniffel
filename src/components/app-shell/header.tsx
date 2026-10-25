@@ -1,11 +1,14 @@
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Logo } from '@/components/ui/logo';
+import { cookies } from 'next/headers';
+import { GATE_COOKIE, verifyGateToken } from '@/lib/gate';
 import { getCurrentUser } from '@/lib/supabase/server';
 import { signOut } from '@/server/auth-actions';
 
 export async function Header() {
   const user = await getCurrentUser();
+  const unlocked = await verifyGateToken((await cookies()).get(GATE_COOKIE)?.value, process.env.SUPABASE_SECRET_KEY);
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4">
       <Link href="/" aria-label="Startseite"><Logo /></Link>
@@ -20,7 +23,7 @@ export async function Header() {
             <button type="submit" className="rounded-xl px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper hover:text-ink">Abmelden</button>
           </form>
         </nav>
-      ) : (
+      ) : unlocked && (
         <nav className="flex items-center gap-2">
           <Link href="/login" className="rounded-xl px-3 py-2 font-bold text-ink-soft hover:bg-paper hover:text-ink">Einloggen</Link>
         </nav>
