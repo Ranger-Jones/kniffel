@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PlayActions } from '@/components/dashboard/play-actions';
 import { buttonClass } from '@/components/ui/button';
 import { getCurrentUser } from '@/lib/supabase/server';
 
@@ -7,7 +8,8 @@ export default async function Home() {
   if (user) {
     return (
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <h1 className="text-4xl font-extrabold">Hey {user.username}!</h1>
+        <h1 className="mb-6 text-4xl font-extrabold">Hey {user.username}!</h1>
+        <PlayActions />
       </main>
     );
   }
