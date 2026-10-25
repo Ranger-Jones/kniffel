@@ -84,6 +84,8 @@ describe('Profil', () => {
     expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/a.webp`)).ok).toBe(true);
     expect((await setAvatarUrl(admin, a.id, `${base}someone-else/a.webp`)).ok).toBe(false);
     expect((await setAvatarUrl(admin, a.id, 'https://evil.example/a.webp')).ok).toBe(false);
+    expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/%2e%2e/other/a.webp`)).ok).toBe(false);
+    expect((await setAvatarUrl(admin, a.id, `${base}${a.id}/a.webp?x=1`)).ok).toBe(false);
   });
   test('Statistik für neuen Spieler ist 0', async () => {
     const a = await createTestUser('sta');

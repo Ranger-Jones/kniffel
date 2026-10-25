@@ -64,9 +64,23 @@ export async function renameUser(admin: AdminClient, userId: string, username: s
   return ok(undefined);
 }
 
+/** Nur Objekte direkt im eigenen Avatar-Ordner, ohne Kodierungen, Query oder Fragment. */
+function isOwnAvatarUrl(raw: string, userId: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  const origin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
+  const prefix = `/storage/v1/object/public/avatars/${userId}/`;
+  const file = url.pathname.slice(prefix.length);
+  return url.origin === origin && !raw.includes('%') && !url.search && !url.hash
+    && url.pathname.startsWith(prefix) && /^[A-Za-z0-9._-]+$/.test(file) && !file.startsWith('.');
+}
+
 export async function setAvatarUrl(admin: AdminClient, userId: string, url: string): Promise<ServiceResult> {
-  const prefix = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${userId}/`;
-  if (!url.startsWith(prefix) || url.includes('..')) return fail('Ungültige Bild-URL.');
+  if (!isOwnAvatarUrl(url, userId)) return fail('Ungültige Bild-URL.');
   const { error } = await admin.from('profiles').update({ avatar_url: url }).eq('id', userId);
   if (error) throw error;
   return ok(undefined);
