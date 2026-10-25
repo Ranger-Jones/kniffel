@@ -113,9 +113,11 @@ export function useGame(initial: GameSnapshot, initialProfiles: Record<string, P
       apply({ ...cur, version: res.data.version, state: res.data.state });
       return true;
     }
-    if (res.error !== STALE) toast.error(res.error);
+    // Veralteter Stand (z. B. verpasstes Realtime-Update): still nachladen, damit der nächste Klick klappt.
+    if (res.error === STALE) await refetch();
+    else toast.error(res.error);
     return false;
-  }, [apply]);
+  }, [apply, refetch]);
 
   const sendEmoji = useCallback((emoji: string) => {
     if (Date.now() - lastEmoji.current < 1000) return;
