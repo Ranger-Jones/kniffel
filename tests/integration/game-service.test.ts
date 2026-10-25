@@ -30,6 +30,36 @@ describe('game-service', () => {
     const { data } = await admin.from('games').select('id').eq('host_id', host.id);
     expect(data).toHaveLength(0);
   });
+  test('Revanche übernimmt die Einstellungen', async () => {
+    const { users, gameId } = await setup(1);
+    await performAction(admin, users[0].id, gameId, { type: 'updateSettings', settings: { chat: false, turnSeconds: 60 } }, await version(gameId));
+    await performAction(admin, users[0].id, gameId, { type: 'start' }, await version(gameId));
+    for (const category of CATEGORIES) {
+      await performAction(admin, users[0].id, gameId, { type: 'roll' });
+      await performAction(admin, users[0].id, gameId, { type: 'score', category });
+    }
+    const r = await requestRematch(admin, users[0].id, gameId);
+    if (!r.ok) throw new Error(r.error);
+    const after = await loadGame(admin, (await loadGame(admin, gameId))!.rematchGameId!);
+    expect(after!.state.settings).toEqual({ chat: false, turnSeconds: 60 });
+  });
+  test('Zeitablauf: parallele Meldungen wirken nur einmal', async () => {
+    const { users, gameId } = await setup(2);
+    await performAction(admin, users[0].id, gameId, { type: 'updateSettings', settings: { turnSeconds: 30 } }, await version(gameId));
+    await performAction(admin, users[0].id, gameId, { type: 'start' }, await version(gameId));
+    const game = (await loadGame(admin, gameId))!;
+    const past = { ...game.state, turnStartedAt: new Date(Date.now() - 60_000).toISOString() };
+    await admin.from('games').update({ state: past as never }).eq('id', gameId);
+    const token = { seat: 0, rollsLeft: 3 };
+    const results = await Promise.all([
+      performAction(admin, users[0].id, gameId, { type: 'timeout' }, token),
+      performAction(admin, users[1].id, gameId, { type: 'timeout' }, token),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    const after = (await loadGame(admin, gameId))!.state;
+    expect(after.currentSeat).toBe(1);
+    expect(Object.values(after.scores[users[0].id]).filter((v) => v !== null)).toHaveLength(1);
+  });
   test('unbekannter Code', async () => {
     const u = await createTestUser('nocode');
     const res = await joinGame(admin, u.id, 'ZZZZZZ');

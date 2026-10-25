@@ -1,5 +1,5 @@
 'use client';
-import { EMOJIS } from '@/lib/emojis';
+import { DEFAULT_QUICK_EMOJIS as EMOJIS } from '@/lib/emojis';
 
 export function EmojiBar({ onSend }: { onSend: (emoji: string) => void }) {
   return (

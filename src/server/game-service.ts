@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import {
-  applyAction, createGameState, createRematchState, placements,
+  applyAction, createGameState, createRematchState, getSettings, placements,
   type GameAction, type GameState,
 } from '@/lib/kniffel/engine';
 import { totalScore } from '@/lib/kniffel/scoring';
@@ -158,7 +158,7 @@ export async function requestRematch(admin: AdminClient, userId: string, gameId:
   if (already) return ok({ code: already.code });
 
   const playerIds = game.state.players.filter((p) => !p.left).map((p) => p.id);
-  const created = await insertGame(admin, createRematchState(userId, playerIds));
+  const created = await insertGame(admin, createRematchState(userId, playerIds, getSettings(game.state)));
   if (!created.ok) return created;
 
   const { data } = await admin.from('games')

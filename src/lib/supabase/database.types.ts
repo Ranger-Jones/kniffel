@@ -129,6 +129,44 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"game_messages": {
+                  Row: {
+                    "body": string,"created_at": string,"game_id": string,"id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "body": string,"created_at"?: string,"game_id": string,"id"?: string,"user_id": string
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"game_id"?: string,"id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "game_messages_game_id_fkey"
+      columns: ["game_id"]
+isOneToOne: false
+      referencedRelation: "games"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "game_messages_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "leaderboard"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "game_messages_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "player_stats"
+      referencedColumns: ["user_id"]
+    },{
+      foreignKeyName: "game_messages_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"game_players": {
                   Row: {
                     "game_id": string,"joined_at": string,"left_game": boolean,"place": number | null,"scores": NonNullable<Json>,"seat": number,"total": number | null,"user_id": string
@@ -207,14 +245,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "avatar_url": string | null,"created_at": string,"id": string,"username": string
+                    "avatar_url": string | null,"created_at": string,"id": string,"quick_emojis": (string)[] | null,"username": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "avatar_url"?: string | null,"created_at"?: string,"id": string,"username": string
+                    "avatar_url"?: string | null,"created_at"?: string,"id": string,"quick_emojis"?: (string)[] | null,"username": string
                   }
                   Update: {
-                    "avatar_url"?: string | null,"created_at"?: string,"id"?: string,"username"?: string
+                    "avatar_url"?: string | null,"created_at"?: string,"id"?: string,"quick_emojis"?: (string)[] | null,"username"?: string
                   }
                   Relationships: [
                     
@@ -241,7 +279,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "can_use_game_channel":
+            "can_read_online_channel":
+{ Args: { "topic": string }; Returns: boolean
+                           },
+"can_use_game_channel":
 { Args: { "topic": string }; Returns: boolean
                            },
 "commit_game":

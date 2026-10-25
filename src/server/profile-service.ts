@@ -2,6 +2,7 @@ import type { AdminClient } from '@/lib/supabase/admin';
 import { fail, ok, type ServiceResult } from './result';
 import type { ProfileLite } from './social-service';
 
+import { isValidQuickEmojis, normalizeQuickEmojis } from '@/lib/emojis';
 import { USERNAME_RE } from '@/lib/username';
 
 export { USERNAME_RE };
@@ -106,4 +107,16 @@ export async function listActiveGames(admin: AdminClient, userId: string) {
     const g = r.games as unknown as { code: string; status: 'lobby' | 'playing'; state: { players: { left: boolean }[] } };
     return { code: g.code, status: g.status, playerCount: g.state.players.filter((p) => !p.left).length };
   });
+}
+
+export async function getQuickEmojis(admin: AdminClient, userId: string): Promise<string[]> {
+  const { data } = await admin.from('profiles').select('quick_emojis').eq('id', userId).maybeSingle();
+  return normalizeQuickEmojis(data?.quick_emojis);
+}
+
+export async function setQuickEmojis(admin: AdminClient, userId: string, emojis: unknown): Promise<ServiceResult> {
+  if (!isValidQuickEmojis(emojis)) return fail('Bitte genau 6 verschiedene Emojis auswählen.');
+  const { error } = await admin.from('profiles').update({ quick_emojis: emojis }).eq('id', userId);
+  if (error) throw error;
+  return ok(undefined);
 }

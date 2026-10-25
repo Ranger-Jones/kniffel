@@ -17,6 +17,14 @@ const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('score'), category: z.enum(CATEGORIES) }),
   z.object({ type: z.literal('skipTurn') }),
   z.object({ type: z.literal('removePlayer'), playerId: z.uuid() }),
+  z.object({
+    type: z.literal('updateSettings'),
+    settings: z.object({
+      chat: z.boolean().optional(),
+      turnSeconds: z.union([z.null(), z.literal(30), z.literal(60), z.literal(90), z.literal(120)]).optional(),
+    }).strict(),
+  }),
+  z.object({ type: z.literal('timeout') }),
 ]);
 const uuid = z.uuid();
 const expectationSchema = z.union([

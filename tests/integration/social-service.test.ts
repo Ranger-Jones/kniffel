@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createGame, loadGame } from '@/server/game-service';
-import { getStatsByUsername, isUsernameTaken, renameUser, setAvatarUrl } from '@/server/profile-service';
+import { getQuickEmojis, getStatsByUsername, isUsernameTaken, renameUser, setAvatarUrl, setQuickEmojis } from '@/server/profile-service';
+import { DEFAULT_QUICK_EMOJIS, EMOJI_CATALOG } from '@/lib/emojis';
 import {
   inviteToGame, listFriends, listPendingInvites, removeFriend, respondFriendRequest, respondInvite,
   searchProfiles, sendFriendRequest,
@@ -102,6 +103,17 @@ describe('Profil', () => {
     await createTestUser('pct');
     expect(await getStatsByUsername(admin, '%')).toBeNull();
     expect(await getStatsByUsername(admin, 'pct_%')).toBeNull();
+  });
+  test('Emoji-Schnellwahl: genau 6 eindeutige aus dem Katalog', async () => {
+    const a = await createTestUser('emo');
+    expect(await getQuickEmojis(admin, a.id)).toEqual([...DEFAULT_QUICK_EMOJIS]);
+    const six = EMOJI_CATALOG.slice(10, 16);
+    expect(await setQuickEmojis(admin, a.id, six.slice(0, 5))).toMatchObject({ ok: false });
+    expect(await setQuickEmojis(admin, a.id, [...six.slice(0, 5), six[0]])).toMatchObject({ ok: false });
+    expect(await setQuickEmojis(admin, a.id, [...six.slice(0, 5), '🦄🦄'])).toMatchObject({ ok: false });
+    expect(await setQuickEmojis(admin, a.id, 'quatsch')).toMatchObject({ ok: false });
+    expect((await setQuickEmojis(admin, a.id, six)).ok).toBe(true);
+    expect(await getQuickEmojis(admin, a.id)).toEqual(six);
   });
   test('Statistik für neuen Spieler ist 0', async () => {
     const a = await createTestUser('sta');

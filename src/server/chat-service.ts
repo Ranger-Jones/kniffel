@@ -1,0 +1,26 @@
+import { getSettings } from '@/lib/kniffel/engine';
+import type { AdminClient } from '@/lib/supabase/admin';
+import { loadGame } from './game-service';
+import { fail, ok, type ServiceResult } from './result';
+
+export const CHAT_MAX = 300;
+const MIN_GAP_MS = 1000;
+
+export async function sendChatMessage(admin: AdminClient, userId: string, gameId: string, body: unknown): Promise<ServiceResult> {
+  const text = typeof body === 'string' ? body.trim() : '';
+  if (!text) return fail('Die Nachricht ist leer.');
+  if (text.length > CHAT_MAX) return fail(`Maximal ${CHAT_MAX} Zeichen.`);
+  const game = await loadGame(admin, gameId);
+  if (!game || !game.state.players.some((p) => p.id === userId && !p.left)) return fail('Du bist nicht in diesem Spiel.');
+  if (!getSettings(game.state).chat) return fail('Der Chat ist in diesem Spiel aus.');
+
+  const since = new Date(Date.now() - MIN_GAP_MS).toISOString();
+  const { data: recent, error: e1 } = await admin.from('game_messages').select('id')
+    .eq('game_id', gameId).eq('user_id', userId).gt('created_at', since).limit(1);
+  if (e1) throw e1;
+  if (recent.length > 0) return fail('Nicht so schnell – kurz warten.');
+
+  const { error } = await admin.from('game_messages').insert({ game_id: gameId, user_id: userId, body: text });
+  if (error) throw error;
+  return ok(undefined);
+}
