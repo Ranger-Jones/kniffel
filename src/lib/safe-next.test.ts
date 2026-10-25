@@ -10,6 +10,8 @@ test.each([
   ['/\t/evil.example', '/'],
   ['/\n/evil.example', '/'],
   ['/a\\b', '/'],
+  ['/.//evil.example', '/'],
+  ['/a/..//evil.example', '/'],
   [undefined, '/'],
   [null, '/'],
 ])('safeNext(%j) = %j', (input, expected) => {
